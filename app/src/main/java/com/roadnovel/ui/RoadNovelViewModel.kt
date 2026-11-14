@@ -26,6 +26,8 @@ import com.roadnovel.story.VoiceStyle
 import com.roadnovel.voice.Narrator
 import com.roadnovel.ai.DialogueGenerator
 import com.roadnovel.ai.ExtraLines
+import com.roadnovel.audio.Sfx
+import com.roadnovel.audio.SoundEffects
 import com.roadnovel.ai.StoryContext
 import com.roadnovel.story.StoryLine
 import kotlinx.coroutines.Deferred
@@ -172,6 +174,7 @@ class RoadNovelViewModel @Inject constructor(
     private val narrator: Narrator,
     private val voiceInput: VoiceInput,
     private val dialogue: DialogueGenerator,
+    private val sound: SoundEffects,
     @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -273,6 +276,7 @@ class RoadNovelViewModel @Inject constructor(
             )
         }
         refreshPlayer(e)
+        sound.startBgm()
         playJob?.cancel()
         playJob = viewModelScope.launch {
             launch { clockLoop(e) }
@@ -285,6 +289,7 @@ class RoadNovelViewModel @Inject constructor(
         if (engine == null) return goHome()
         paused.value = true
         narrator.stop() // 읽던 줄은 "계속 듣기" 하면 처음부터 다시 읽음
+        sound.pauseBgm()
         _ui.update { it.copy(quitDialog = true) }
     }
 
@@ -305,6 +310,7 @@ class RoadNovelViewModel @Inject constructor(
     fun cancelQuit() {
         _ui.update { it.copy(quitDialog = false) }
         paused.value = false
+        sound.startBgm()
     }
 
     /** 디버그: 앱을 진짜로 강제 종료 (임시 저장 복구 시연용) */
@@ -327,6 +333,7 @@ class RoadNovelViewModel @Inject constructor(
     fun toggleSound() {
         val on = !_ui.value.soundOn
         if (!on) narrator.stop()
+        sound.setEnabled(on)
         _ui.update { it.copy(soundOn = on) }
     }
 
@@ -495,14 +502,18 @@ class RoadNovelViewModel @Inject constructor(
                 saves.save(st, isTemp = true)
                 savedSceneId = st.sceneId
                 prefetchAi(e)
+                sound.play(Sfx.SCENE)
             }
             when (val a = e.nextAction()) {
                 is EngineAction.Speak -> {
                     if (a.source == LineSource.INTERLUDE && _ui.value.player?.caption?.source != LineSource.INTERLUDE) {
                         showToast("🏕️ 정차 이벤트: 탐험대도 잠깐 쉬어요")
+                        sound.play(Sfx.REST)
                     }
                     setCaption(e, a)
+                    sound.setSpeaking(true)
                     activeNarrator.speak(a.line.text, voiceOf(e, a.line.who))
+                    sound.setSpeaking(false)
                     // 읽는 도중 "그만하기"로 멈췄으면 이 줄은 끝난 게 아님 → 나중에 다시 읽음
                     if (!paused.value) e.lineDone()
                 }
@@ -514,6 +525,8 @@ class RoadNovelViewModel @Inject constructor(
                     // 결말 도착: 진행 기록 삭제 + 배지 저장
                     saves.delete(e.story.id)
                     saves.addBadge(e.story.id, a.ending)
+                    sound.stopBgm()
+                    sound.play(Sfx.ENDING)
                     showEnding(e, a.ending)
                     return
                 }
@@ -540,6 +553,7 @@ class RoadNovelViewModel @Inject constructor(
             )
         )
         show(timeout)
+        if (a.attempt == 1) sound.play(Sfx.CHOICE)
 
         val outcome: ChoiceOutcome? = coroutineScope {
             // 질문 읽는 동안에도 버튼은 누를 수 있다
@@ -581,6 +595,7 @@ class RoadNovelViewModel @Inject constructor(
         }
         when (result) {
             is ChoiceResult.Picked -> {
+                sound.play(Sfx.PICK)
                 val how = if (result.method == com.roadnovel.story.ChoiceMethod.DEFAULT) " (대답이 없어서 기본 선택)" else ""
                 showToast("🗺️ 탐험대의 선택: ${result.option.label}$how")
             }
@@ -639,6 +654,7 @@ class RoadNovelViewModel @Inject constructor(
 
     private fun stopPlaying() {
         narrator.stop()
+        if (_ui.value.screen != ScreenId.ENDING) sound.stopBgm()
         aiPrefetch.values.forEach { it.cancel() }
         aiPrefetch.clear()
         playJob?.cancel()

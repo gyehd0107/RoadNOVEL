@@ -72,13 +72,28 @@ app/src/main/
     data/save/           진행 저장·결말 배지 (Room)
     voice/               낭독·음성 인식 (Pleos TTS/STT / Android 기본 / 자막만)
     ai/                  AI 추가 대사 (Pleos LLM 구조 / 미리 쓴 대사) + SafetyFilter
+    audio/               효과음·배경음
     ui/                  화면 (홈·이야기 선택·재생·결말·디버그 패널)
     di/                  Hilt 설정 (음성·AI·차량 엔진 고르기)
 app/src/test/            단위 테스트
 docs/screenshots/        에뮬레이터 실행 화면
+tools/make_sounds.py     효과음·배경음 합성 스크립트
 prototype/               브라우저용 체험 시제품 (HTML)
 CLAUDE.md                설계·규칙 문서
 ```
+
+## 효과음·배경음 출처
+외부 음원은 **하나도 쓰지 않았어요.** 모든 효과음과 배경음은 이 저장소의 [`tools/make_sounds.py`](tools/make_sounds.py)(파이썬 표준 라이브러리만 사용)로 **직접 합성**한 것이라 저작권 걱정이 없어요.
+
+| 소리 | 언제 |
+|---|---|
+| 밤하늘 배경음 (24초 반복, 대사를 읽을 땐 더 작게) | 이야기 재생 중 |
+| 글로켄슈필 3음 | 새 장면 |
+| 질문하는 두 음 / 짧은 반짝임 | 갈림길이 나올 때 / 선택했을 때 |
+| 낮고 포근한 종 | 정차 이야기 |
+| 짧은 팡파르 | 결말 |
+
+다시 만들려면: `python tools/make_sounds.py` → `app/src/main/res/raw/`
 
 ## 기술 스택
 Kotlin · Jetpack Compose · Coroutines/Flow · Hilt · Room · kotlinx.serialization · Pleos Connect SDK (Vehicle, TextToSpeech, SpeechToText, LLM)

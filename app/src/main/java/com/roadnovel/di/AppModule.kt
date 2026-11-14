@@ -4,6 +4,8 @@ import android.content.Context
 import com.roadnovel.data.navi.MockNaviDataSource
 import com.roadnovel.data.navi.NaviDataSource
 import androidx.room.Room
+import com.roadnovel.audio.AndroidSoundEffects
+import com.roadnovel.audio.SoundEffects
 import com.roadnovel.data.save.RoadNovelDatabase
 import com.roadnovel.data.save.RoomSaveRepository
 import com.roadnovel.data.save.SaveRepository
@@ -50,6 +52,11 @@ object AppModule {
     @Provides
     @Singleton
     fun mockNavi(): MockNaviDataSource = MockNaviDataSource()
+
+    /** 효과음·배경음 (tools/make_sounds.py로 직접 만든 소리) */
+    @Provides
+    @Singleton
+    fun soundEffects(@ApplicationContext context: Context): SoundEffects = AndroidSoundEffects(context)
 
     // TODO(M5): Pleos NaviHelper 구현이 생기면 여기서 고른다
     @Provides
