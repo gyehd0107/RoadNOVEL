@@ -140,6 +140,14 @@ class StoryEngineTest {
         }
     }
 
+    @Test
+    fun `출발 전 주차 시간은 평균 속도에 넣지 않는다`() {
+        val d = drive(20, speed = 0f)
+        d.run(600.0) // 10분 주차
+        assertEquals(StoryEngine.DEFAULT_KM_PER_MIN, d.engine.state.avgKmPerMin, 0.0)
+        assertEquals(10.0 / 6.2, d.engine.requiredKm(), 0.01)
+    }
+
     // ------------------------------------------------------------------
     // 4) 막힘 방지 시간이 지나면 넘어가는지
     // ------------------------------------------------------------------
@@ -173,6 +181,28 @@ class StoryEngineTest {
         val a = d.playUntilChoiceOrEnd()
         assertTrue(a is EngineAction.AskChoice && a.attempt == 1)
         return d.engine
+    }
+
+    @Test
+    fun `선택지 장면은 거리를 기다리지 않고 바로 묻고 못 채운 거리는 다음 장면으로 넘긴다`() {
+        val d = drive(20, speed = 30f)
+        val e = d.engine
+        val ask = d.playUntilChoiceOrEnd() // 장면2 대사 3줄(12초) 읽자마자 질문
+        assertTrue(ask is EngineAction.AskChoice)
+        assertEquals("s2_forest_gate", e.state.sceneId)
+
+        val leftover = e.requiredKm() - e.movedInScene()
+        assertTrue("장면2 거리는 거의 못 채웠어야 함: $leftover", leftover > 1.0)
+
+        e.answerChoice("성")
+        assertEquals("s3a_castle", e.state.sceneId)
+        assertEquals(leftover, e.state.carryKm, 1e-9)
+        // 다음 장면 필요 거리 = 넘어온 거리 + 성 장면 거리(1.2 × kmPerWeight)
+        assertEquals(leftover + 1.2 * e.kmPerWeight(), e.requiredKm(), 1e-9)
+
+        // 성 장면을 다 끝내고 다음으로 가면 넘어온 거리는 사라진다
+        d.playUntilChoiceOrEnd()
+        assertEquals(0.0, e.state.carryKm, 0.0)
     }
 
     @Test

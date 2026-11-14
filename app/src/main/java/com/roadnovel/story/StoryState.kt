@@ -47,6 +47,8 @@ data class StoryState(
     val doneWeight: Double = 0.0,
     /** 지금 장면을 시작했을 때의 totalKm */
     val sceneStartKm: Double = 0.0,
+    /** 앞 선택지 장면에서 못 채우고 넘어온 거리 */
+    val carryKm: Double = 0.0,
     /** 대사가 끝나고 기다린 시간(초) — 막힘 방지용 */
     val waitSec: Double = 0.0,
     /** 평균 속도(km/분). 처음엔 0.5 (=30km/h) */

@@ -52,7 +52,7 @@ dependencies {
     // Hilt (의존성 주입)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
 
     // 스토리 JSON 읽기, Flow
     implementation(libs.kotlinx.serialization.json)

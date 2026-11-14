@@ -3,7 +3,8 @@ package com.roadnovel
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.roadnovel.ui.home.HomeScreen
+import androidx.activity.enableEdgeToEdge
+import com.roadnovel.ui.RoadNovelRoot
 import com.roadnovel.ui.theme.RoadNovelTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -11,10 +12,11 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
             RoadNovelTheme {
-                HomeScreen()
+                RoadNovelRoot()
             }
         }
     }

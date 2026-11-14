@@ -98,9 +98,11 @@ class StoryEngine(
                     return EngineAction.Speak(lines[s.lineIndex], LineSource.SCENE)
                 }
                 // 대사 끝
-                scene.ending?.let { ending ->
-                    s = s.copy(phase = Phase.ENDED, endingId = ending.id)
-                    return EngineAction.Finished(ending)
+                // 선택지 장면은 거리를 기다리지 않고 바로 질문 (못 채운 거리는 다음 장면으로)
+                if (scene.choice != null) {
+                    s = s.copy(phase = Phase.CHOICE)
+                    choiceAttempt = 1
+                    return nextAction()
                 }
                 if (movedInScene() >= requiredKm()) return afterDistance()
                 // 거리 부족 → AI 추가 대사 한 번 (규칙 4)
@@ -203,15 +205,20 @@ class StoryEngine(
         return targetKm / totalWeight.coerceAtLeast(MIN_WEIGHT)
     }
 
-    /** 지금 장면에서 달려야 하는 거리 */
-    fun requiredKm(): Double = currentScene.weight * kmPerWeight()
+    /** 지금 장면에서 달려야 하는 거리 (= 선택지 장면에서 넘어온 거리 + 이 장면 거리) */
+    fun requiredKm(): Double = s.carryKm + ownWeight() * kmPerWeight()
+
+    /** 결말 장면은 자기 거리를 기다리지 않는다 (넘어온 거리만 채움) */
+    private fun ownWeight(): Double = if (currentScene.ending != null) 0.0 else currentScene.weight
 
     fun movedInScene(): Double = s.totalKm - s.sceneStartKm
 
     /** 이 시간 넘게 기다리면 거리와 상관없이 넘어감 (규칙 6) */
     fun stallLimitSec(): Double {
         val totalWeight = longestWeight(story.start).coerceAtLeast(MIN_WEIGHT)
-        return currentScene.weight * s.lengthMin / totalWeight * STALL_FACTOR * 60.0
+        // 넘어온 거리도 weight로 바꿔서 더한다
+        val carriedWeight = s.carryKm / kmPerWeight().coerceAtLeast(MIN_WEIGHT)
+        return (ownWeight() + carriedWeight) * s.lengthMin / totalWeight * STALL_FACTOR * 60.0
     }
 
     /** 조건(has:아이템)에 맞는 대사만 */
@@ -246,10 +253,9 @@ class StoryEngine(
     }
 
     private fun afterDistance(): EngineAction {
-        if (currentScene.choice != null) {
-            s = s.copy(phase = Phase.CHOICE)
-            choiceAttempt = 1
-            return nextAction()
+        currentScene.ending?.let { ending ->
+            s = s.copy(phase = Phase.ENDED, endingId = ending.id)
+            return EngineAction.Finished(ending)
         }
         goTo(currentScene.next!!)
         return nextAction()
@@ -257,19 +263,21 @@ class StoryEngine(
 
     private fun select(index: Int, method: ChoiceMethod): ChoiceResult.Picked {
         val option = currentScene.choice!!.options[index]
+        val leftoverKm = (requiredKm() - movedInScene()).coerceAtLeast(0.0)
         s = s.copy(
             choices = s.choices + ChoiceRecord(s.sceneId, index, option.label, method),
             flags = (s.flags + option.setFlags).distinct(),
         )
-        goTo(option.next)
+        goTo(option.next, carryKm = leftoverKm)
         return ChoiceResult.Picked(index, option, method)
     }
 
-    private fun goTo(nextId: String) {
+    private fun goTo(nextId: String, carryKm: Double = 0.0) {
         s = enterScene(
             s.copy(
                 doneWeight = s.doneWeight + currentScene.weight,
                 sceneId = resolve(nextId),
+                carryKm = carryKm,
             )
         )
     }
@@ -314,6 +322,11 @@ class StoryEngine(
 
     /** 최근 5분 평균 속도로 보정 (규칙 2) */
     private fun updateAverage(elapsed: Double, total: Double): Double {
+        // 아직 출발 전(주차 중)이면 평균을 계산하지 않는다
+        if (total <= 0.0) {
+            speedSamples.clear()
+            return s.avgKmPerMin
+        }
         speedSamples.addLast(elapsed to total)
         while (speedSamples.size > 1 && elapsed - speedSamples.first().first > AVG_WINDOW_SEC) {
             speedSamples.removeFirst()

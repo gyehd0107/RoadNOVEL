@@ -1,6 +1,8 @@
 package com.roadnovel.di
 
 import android.content.Context
+import com.roadnovel.data.navi.MockNaviDataSource
+import com.roadnovel.data.navi.NaviDataSource
 import com.roadnovel.data.story.AssetStoryRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
 import com.roadnovel.data.vehicle.VehicleDataSource
@@ -31,4 +33,13 @@ object AppModule {
     @Provides
     @Singleton
     fun vehicleDataSource(mock: MockVehicleDataSource): VehicleDataSource = mock
+
+    @Provides
+    @Singleton
+    fun mockNavi(): MockNaviDataSource = MockNaviDataSource()
+
+    // TODO(M5): Pleos NaviHelper 구현이 생기면 여기서 고른다
+    @Provides
+    @Singleton
+    fun naviDataSource(mock: MockNaviDataSource): NaviDataSource = mock
 }
