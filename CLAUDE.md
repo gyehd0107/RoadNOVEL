@@ -45,8 +45,8 @@
 - 이동 거리: 1순위 Vehicle SDK **Odometer**, 2순위 AAOS `PERF_ODOMETER`, 3순위 FusedLocation 위치 변화 누적.
 - **차량 데이터 — Vehicle SDK 2.0.3 jar(javap)와 에뮬레이터에서 직접 확인 (2026-11-14)** · 구현: `data/vehicle/PleosVehicleDataSource.kt`
   - 의존성 `ai.pleos.playground:Vehicle:2.0.3`. 권한 `pleos.car.permission.CAR_DRIVE`(주행거리·기어, SDK 어노테이션에 적힌 값), `VEHICLE_BINDING`은 SDK가 자동 추가.
-  - 주행거리: `vehicle.getOdometer().getCurrentDistanceDriven(onOk, onFail)` + `registerDistanceDriven(DistanceDrivenListener)` → `onDistanceDrivenUpdated(Float?)` (km). ✔ 동작.
-  - 기어: Pleos `getGear()`는 **deprecated ("use the Google GEAR_SELECTION property")** → AAOS `GEAR_SELECTION`(권한 `CAR_POWERTRAIN`)을 먼저 쓰고 Pleos는 예비. ✔ 콘솔 P↔D가 바로 반영됨.
+  - 주행거리: `vehicle.getOdometer().getCurrentDistanceDriven(onOk, onFail)` + `registerDistanceDriven(DistanceDrivenListener)` → `onDistanceDrivenUpdated(Float?)` (km). (확인) 동작.
+  - 기어: Pleos `getGear()`는 **deprecated ("use the Google GEAR_SELECTION property")** → AAOS `GEAR_SELECTION`(권한 `CAR_POWERTRAIN`)을 먼저 쓰고 Pleos는 예비. (확인) 콘솔 P↔D가 바로 반영됨.
   - 속도: Vehicle SDK에 `VehicleSpeedListener` 클래스는 있으나 등록하는 공개 API가 없음 → AAOS `PERF_VEHICLE_SPEED`(권한 `CAR_SPEED`, 실행 중 허용. AAOS에서는 "위치 정보" 권한 창으로 보임). 지원은 되지만 콘솔에 속도 카드가 없어 계속 0 → **0이 아닌 값이 한 번이라도 와야 속도를 믿고**, 그 전에는 기어로 판단.
   - capability: Vehicle SDK의 `CapabilityType`은 SUNROOF/AMBIENT_LIGHT 뿐 → 주행거리·기어는 "첫 읽기가 성공하면 지원"으로 판단. 둘 다 실패하면 자동으로 Mock.
   - 판단 규칙 (`effectiveSpeedKmh`): 기어 P → 정차(속도 0) / 속도 값이 있으면 속도 / 기어 D·R + 속도 모름 → 주행(정차 아님).
@@ -56,7 +56,7 @@
   - 값 바꾸기 API (페이지가 쓰는 것): `PUT /vehicle/gear?gear=Park|Reverse|Neutral|Drive`, `PUT /vehicle/odometer?traveled_distance_km=N`, 상태 `GET /vehicle/state`, 목록 `GET /vehicle/catalog`.
   - **브라우저 세션이 살아 있어야 쓰기가 됨**: 없으면 `503 {"error":"emulator_inactive"}` → `POST /browser/session?client=이름`을 먼저 보내면 됨 (브라우저 탭을 열어 두면 자동).
   - 주행거리는 **줄일 수 없음** (지금 값보다 작으면 400). 늘리기만 가능.
-  - 확인 결과 (10분 이야기): 기어 D + 주행거리 +1km → 다음 장면 ✔, 갈림길은 바로 질문 ✔, +3km 더 → 안개 다리 ✔, 기어 P → 5초 뒤 정차 이야기 ✔ (선택지 화면에서는 정차 이야기를 끼우지 않음).
+  - 확인 결과 (10분 이야기): 기어 D + 주행거리 +1km → 다음 장면 (확인), 갈림길은 바로 질문 (확인), +3km 더 → 안개 다리 (확인), 기어 P → 5초 뒤 정차 이야기 (확인) (선택지 화면에서는 정차 이야기를 끼우지 않음).
 - 남은 시간: NaviHelper(내비 연동) — 내비가 있는 차량에서만 완전 지원.
 - **Pleos 음성 SDK 3.3.1 — 정리: `docs/Pleos_음성SDK_정리.md`, 아래는 SDK jar(javap)와 에뮬레이터(Pleos_Connect_v2.1.0, API 34)에서 직접 확인 (2026-11-14)**
   - 의존성: `ai.pleos.playground:TextToSpeech:3.3.1`, `ai.pleos.playground:SpeechToText:3.3.1`. 권한 `pleos.car.permission.TTS_SERVICE` / `STT_SERVICE` (설치 시 자동 허용됨).
@@ -68,7 +68,7 @@
   - `request()`(실제 마이크): `ReadyToStartRecognition`까지는 오지만 에뮬레이터의 호스트 마이크 입력이 꺼져 있으면 인식이 시작되지 않고 시간 초과 → 버튼/기본값.
   - Android 기본 `TextToSpeech`/`SpeechRecognizer`는 이 에뮬레이터에서 동작하지 않음 (TTS 엔진 없음, 인식 모델 파일 오류) → `VOICE_ENGINE`은 `"pleos"`가 기본.
   - 에뮬레이터 AVD: `fastboot.forceColdBoot=yes`(항상 cold boot), `hw.audioInput=yes`. 호스트 마이크는 실행 중 Extended Controls → Microphone에서 켜야 함 (설정 파일에 저장 안 됨).
-  - 시연용: 디버그 빌드의 디버그 패널에서 선택지가 떠 있을 때 🎤 "오래된 성" / 🎤 "2번" 버튼 → 시험 녹음(`app/src/debug/assets/test_audio`)을 `sendAudio`로 보냄.
+  - 시연용: 디버그 빌드의 디버그 패널에서 선택지가 떠 있을 때 "오래된 성" / "2번" 버튼 → 시험 녹음(`app/src/debug/assets/test_audio`)을 `sendAudio`로 보냄.
 
 ## 5. 폴더 구조 (목표)
 
@@ -166,7 +166,7 @@ interface DialogueGenerator {        // LLM
 - 다음 장면의 AI 대사는 **현재 장면 재생 중에 미리 생성**해 둔다(네트워크 끊김 대비). 3초 안에 못 받으면 건너뛴다.
 - **구현 (M6, 2026-11-14)**: `ai/` — `DialogueGenerator`(인터페이스), `PromptBuilder`, `ResponseParser`(`인물id|대사`만, 틀린 줄은 버림), `SafetyFilter`(금칙어·40자·최대 3줄·없는 인물·모르는 이름 부르기), `MockDialogueGenerator`(장면별로 미리 쓴 대사, 같은 필터 통과), `PleosDialogueGenerator`, `FallbackDialogueGenerator`(Pleos → 결과 없으면 Mock).
   - 장면에 들어가는 순간 그 장면의 AI 대사를 미리 생성 → 대사가 끝나고 필요할 때 **3초만** 기다리고 못 받으면 건너뜀.
-  - **"✨ AI" 표시는 언어 모델(Pleos LLM)이 실제로 만든 대사에만** 붙인다 (`ExtraLines.byModel = true` → `LineSource.AI`). 미리 써 둔 대사는 `LineSource.EXTRA`로 표시 없이 읽는다. 출처는 디버그 패널 "마지막 AI 대사"에서 확인.
+  - **"AI" 표시는 언어 모델(Pleos LLM)이 실제로 만든 대사에만** 붙인다 (`ExtraLines.byModel = true` → `LineSource.AI`). 미리 써 둔 대사는 `LineSource.EXTRA`로 표시 없이 읽는다. 출처는 디버그 패널 "마지막 AI 대사"에서 확인.
   - 엔진 선택: `app/build.gradle.kts`의 `AI_ENGINE` = `"mock"`(기본) / `"pleos"`.
 - **Pleos LLM SDK — 공식 사용 안내 문서 없음, SDK jar(javap)와 에뮬레이터로 직접 확인 (2026-11-14)**
   - Maven: `ai.pleos.playground:LLM` 존재 (2.1.2 / 2.1.3.1 / **2.1.3.2** 최신).
@@ -183,14 +183,14 @@ interface DialogueGenerator {        // LLM
   - AudioFocus: `audio/AudioFocus.kt` — 재생 시작 때 `AUDIOFOCUS_GAIN`(USAGE_MEDIA, CONTENT_TYPE_SPEECH, `setWillPauseWhenDucked(true)`), 끝낼 때 반납.
     - DUCK: 배경음 0.04로 + 낭독은 잠깐 멈춤 (Pleos TTS에는 볼륨 API가 없어 "줄이기" 대신 멈춤) → 돌아오면 그 줄부터 다시.
     - LOSS_TRANSIENT: 모두 멈춤 → GAIN에 그 줄부터 다시. LOSS: 멈춤 + "▶ 이어 듣기" 버튼.
-    - 에뮬레이터: Pleos TTS(caas)가 대사를 읽어도 우리 포커스를 빼앗지 않음 ✔. 디버그 "🧭 내비 안내 끼어들기"(USAGE_ASSISTANCE_NAVIGATION_GUIDANCE, GAIN_TRANSIENT_MAY_DUCK) → AAOS는 우리에게 `LOSS_TRANSIENT`를 보냄 → 47자 대사가 2.3초에서 끊기고, 안내가 끝나면 같은 대사를 처음부터 다시 읽음 ✔.
+    - 에뮬레이터: Pleos TTS(caas)가 대사를 읽어도 우리 포커스를 빼앗지 않음 (확인). 디버그 "내비 안내 끼어들기"(USAGE_ASSISTANCE_NAVIGATION_GUIDANCE, GAIN_TRANSIENT_MAY_DUCK) → AAOS는 우리에게 `LOSS_TRANSIENT`를 보냄 → 47자 대사가 2.3초에서 끊기고, 안내가 끝나면 같은 대사를 처음부터 다시 읽음 (확인).
   - 주행 중 화면 제한: `data/vehicle/DrivingRestriction.kt` — AAOS `CarUxRestrictionsManager`의 `isRequiresDistractionOptimization` (또는 Pleos 차량이 달리는 중). Pleos Driving Restriction Policy 문서는 자동으로 읽히지 않아 AAOS 표준 + 이 장의 규칙으로 점검.
     - 주행 중: 디버그 패널 숨김(그리고 디버그 빌드에서만 보임), 이야기 선택은 "출발! (추천 길이)" 하나만, 속도 권한 설명·권한 창은 정차 때까지 미룸. 재생·선택지·저장 대화상자는 그대로(큰 버튼, 스크롤·입력 없음).
-    - 에뮬레이터: Virtual Console 기어 D + `PUT /vehicle/controls?speed_kph=40` → 주행 상태 MOVING, 제한 0x50 → 앱이 주행용 화면으로 바뀜 ✔, 정차하면 원래대로 ✔. (콘솔 화면에 속도 카드는 없지만 이 API로 속도를 바꿀 수 있음)
-    - 디버그 "🚦 주행 중 화면 미리보기"로 PT용 캡처 가능 (끄기: 로고 길게 누르기).
+    - 에뮬레이터: Virtual Console 기어 D + `PUT /vehicle/controls?speed_kph=40` → 주행 상태 MOVING, 제한 0x50 → 앱이 주행용 화면으로 바뀜 (확인), 정차하면 원래대로 (확인). (콘솔 화면에 속도 카드는 없지만 이 API로 속도를 바꿀 수 있음)
+    - 디버그 "주행 중 화면 미리보기"로 PT용 캡처 가능 (끄기: 로고 길게 누르기).
   - **앱 심사 기준 대응 (2026-11-14)** — `docs/Pleos_주행제한_심사기준_정리.md`는 저장소에 없어서 요청받은 5개 항목만 처리
     - "게임"으로 보이지 않게: 들어 본 결말 목록(홈)·결말 그림·남은 결말 수(결말 화면)는 **정차 중에만**. 화면 글자도 "에피소드 완성"→"이야기 끝", "모은 결말 배지"→"들어 본 결말". README는 "오디오 이야기 앱".
-    - AI 콘텐츠 신고: AI 추가 대사 자리(`LineSource.AI`/`EXTRA`)의 줄에 **정차 중에만** "🚩 이 대사 신고하기". Room `content_reports`(DB v2, `MIGRATION_1_2` — 기존 저장 유지 확인)에 이야기·장면·인물·대사·출처만 기록(개인정보·위치 없음). 서버가 생기면 `ReportUploader`로 `pending()`을 보내고 `markSent()`.
+    - AI 콘텐츠 신고: AI 추가 대사 자리(`LineSource.AI`/`EXTRA`)의 줄에 **정차 중에만** "이 대사 신고하기". Room `content_reports`(DB v2, `MIGRATION_1_2` — 기존 저장 유지 확인)에 이야기·장면·인물·대사·출처만 기록(개인정보·위치 없음). 서버가 생기면 `ReportUploader`로 `pending()`을 보내고 `markSent()`.
     - SafetyFilter: `UNSAFE_IN_CAR`(창밖으로 손·머리·몸 내밀기, 창문 열기, 벨트 풀기, 일어서기)·`UNSAFE_DRIVING`(빨리 달려, 과속, 신호 무시, 빨간불, 추월, 끼어들기, 운전자 재촉). 스토리 44줄도 같은 기준으로 테스트 — "요정들이 고개를 내밀었어요"를 "빼꼼 얼굴을 보였어요"로 고침. 부르는 말 검사가 "괜찮아."를 이름으로 오해하던 문제도 고침.
     - 로딩 표시: `LoadingAfterDelay` — 2초 넘게 반응이 없으면 로딩 표시 (첫 대사 준비, 저장하고 끝내기, Pleos 차량 연결). 에뮬레이터에서는 세 작업 모두 2초 안에 끝나 실제로 로딩이 뜨는 장면은 보지 못함.
     - 권한 목록: README "앱이 쓰는 권한" 표 (병합된 매니페스트 기준 9개).
@@ -206,10 +206,10 @@ interface DialogueGenerator {        // LLM
 - **M5** 차량 데이터: Pleos Vehicle(Odometer) + 속도(CarPropertyManager) + NaviHelper 남은 시간
 - **M6** Pleos LLM 추가 대사 + SafetyFilter
 - **M7** 시연 다듬기: 디버그 패널, 효과음/배경음, 시연 시나리오 스크립트
-  - ✅ (2026-11-14) 시연 모드: 디버그 패널 "🎬 시연 시작" → 10분 이야기를 자동 진행 (`RoadNovelViewModel.runDemo`). 출발 → 장면 → 정차 이야기 → 선택(버섯 마을) → 그만하기·저장 → 이어 듣기 → 선택(노래) → 결말. 에뮬레이터에서 **1분 51초**. 시간만 재지 않고 화면 상태를 보고 다음 단계로 넘어감.
-  - ✅ README.md (심사용, 팀원 개인정보 없음), docs/screenshots (디버그 패널 없는 화면 위주)
-  - ✅ 효과음/배경음: 외부 음원 없이 `tools/make_sounds.py`로 직접 합성 (`res/raw`), README에 출처. `audio/SoundEffects` — SoundPool(효과음) + MediaPlayer(배경음 반복). 대사를 읽는 동안 배경음 0.12, 기다릴 땐 0.30. 그만하기 대화상자에서 일시정지, 결말에서 끝 + 팡파르, 🔇 자막만이면 모두 끔. 시연 모드에서 로그로 순서 확인.
-  - ⬜ AudioFocus·덕킹(11장): 아직 안 함. Pleos TTS는 다른 앱(caas)이 소리를 내므로, 우리 앱이 포커스를 잡으면 TTS와 서로 어떻게 반응하는지 먼저 에뮬레이터에서 확인해야 함.
+  - [완료] (2026-11-14) 시연 모드: 디버그 패널 "시연 시작" → 10분 이야기를 자동 진행 (`RoadNovelViewModel.runDemo`). 출발 → 장면 → 정차 이야기 → 선택(버섯 마을) → 그만하기·저장 → 이어 듣기 → 선택(노래) → 결말. 에뮬레이터에서 **1분 51초**. 시간만 재지 않고 화면 상태를 보고 다음 단계로 넘어감.
+  - [완료] README.md (심사용, 팀원 개인정보 없음), docs/screenshots (디버그 패널 없는 화면 위주)
+  - [완료] 효과음/배경음: 외부 음원 없이 `tools/make_sounds.py`로 직접 합성 (`res/raw`), README에 출처. `audio/SoundEffects` — SoundPool(효과음) + MediaPlayer(배경음 반복). 대사를 읽는 동안 배경음 0.12, 기다릴 땐 0.30. 그만하기 대화상자에서 일시정지, 결말에서 끝 + 팡파르, 자막만이면 모두 끔. 시연 모드에서 로그로 순서 확인.
+  - [남음] AudioFocus·덕킹(11장): 아직 안 함. Pleos TTS는 다른 앱(caas)이 소리를 내므로, 우리 앱이 포커스를 잡으면 TTS와 서로 어떻게 반응하는지 먼저 에뮬레이터에서 확인해야 함.
 
 ## 13. 작업할 때 지킬 것
 
