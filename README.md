@@ -75,7 +75,7 @@
 ---
 
 <details>
-<summary><b>더 알아보기 — 권한, 사용한 리소스, 개발 정보</b></summary>
+<summary><b>자세히 보기</b></summary>
 
 ### 앱이 쓰는 권한 (Pleos App Market 협의용)
 
