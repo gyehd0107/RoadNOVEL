@@ -3,11 +3,24 @@
 **차가 실제로 달린 거리와 멈춘 순간, 탑승자의 음성 선택에 따라 전개와 결말이 달라지는 차량용 오디오 이야기 앱**입니다.
 현대자동차그룹 **Pleos Connect**(Android Automotive OS)용으로 만들었고, 원하는 길이(10/20/30분)만큼 듣다가 다음 주행에서 이어 들을 수 있어요.
 
-| 재생 화면 | 음성 선택 | 이어 듣기 |
-|---|---|---|
-| ![재생 화면](docs/screenshots/03_player.png) | ![음성 선택](docs/screenshots/05_choice.png) | ![이어 듣기](docs/screenshots/08_home_resume.png) |
+## 화면
 
-> 모든 화면은 Pleos Connect Emulator에서 실제로 실행해 캡처했어요. 더 많은 화면: [`docs/screenshots`](docs/screenshots)
+| ① 이야기 선택 | ② 재생 중 |
+|---|---|
+| ![이야기 선택](docs/screenshots/01_select.png) | ![재생 중](docs/screenshots/02_player.png) |
+| 내비 도착 시간에 맞춰 이야기 길이를 추천해요 | 차가 달린 만큼 이야기가 나아가요 |
+
+| ③ 주행 중 화면 | ④ 음성 선택지 |
+|---|---|
+| ![주행 중 화면](docs/screenshots/03_player_driving.png) | ![음성 선택지](docs/screenshots/04_choice.png) |
+| 운전 중에는 꼭 필요한 것만 보여 주고, 조작 없이 들으면 돼요 | 갈림길에서 말로 고르면 결말이 달라져요 |
+
+| ⑤ 이어 듣기 |
+|---|
+| ![이어 듣기](docs/screenshots/05_home_resume.png) |
+| 오늘 못 다 들은 이야기는 다음 주행에서 이어서 들어요 |
+
+> 모든 화면은 Pleos Connect Emulator에서 실제 앱을 실행해 캡처했어요. (③은 Virtual Console에서 기어 D·속도 40km/h로 바꾼 상태)
 
 ---
 
