@@ -77,62 +77,6 @@
 <details>
 <summary><b>자세히 보기</b></summary>
 
-### 앱이 쓰는 권한 (Pleos App Market 협의용)
-
-| 권한 | 종류 | 쓰는 곳 | 없으면 |
-|---|---|---|---|
-| `pleos.car.permission.CAR_DRIVE` | Pleos 차량 | 주행거리(Odometer) 읽기 — Vehicle SDK | 가상 차량으로 동작 |
-| `ai.pleos.playground.service.vehicle.VEHICLE_BINDING` | Pleos 차량 (SDK가 자동 추가) | Vehicle SDK 서비스 연결 | 위와 같음 |
-| `android.car.permission.CAR_SPEED` | AAOS 차량 · 실행 중 허용 (화면에는 "위치 정보"로 표시) | 차량 속도(`PERF_VEHICLE_SPEED`) — 신호 대기 같은 정차 판단 | 기어로만 정차 판단 |
-| `android.car.permission.CAR_POWERTRAIN` | AAOS 차량 | 기어(`GEAR_SELECTION`) — P면 정차 | 속도로 판단 |
-| `pleos.car.permission.TTS_SERVICE` | Pleos 음성 | 대사 낭독 — TextToSpeech SDK | 자막만 표시 |
-| `pleos.car.permission.STT_SERVICE` | Pleos 음성 | 음성으로 선택 — SpeechToText SDK | 화면 버튼으로 선택 |
-| `android.permission.RECORD_AUDIO` | Android · 실행 중 허용 | 음성으로 선택 (마이크) | 화면 버튼으로 선택 |
-| `pleos.car.permission.LLM_SERVICE` | Pleos AI | AI 추가 대사 — LLM SDK (현재는 구조만) | 미리 쓴 대사 |
-| `android.permission.INTERNET` | Android (Pleos SDK가 자동 추가) | Pleos SDK 서버 모드 (현재는 기기 안에서만 동작) | 기기 안에서 동작 |
-
-- 위치(GPS) 사용 안 함
-
-### 확인한 SDK 버전·방식
-- Vehicle SDK 2.0.3 (주행거리), 기어·속도는 AAOS `GEAR_SELECTION`·`PERF_VEHICLE_SPEED`
-- TextToSpeech / SpeechToText 3.3.1 — ON_DEVICE 모드 (앱 등록 없이 동작)
-- LLM 2.1.3.2 — 에뮬레이터 로그 `on-device LLM is disabled`, 미리 쓴 대사로 대체 (이 대사에는 AI 표시를 하지 않음)
-- 주행 제한: AAOS `CarUxRestrictionsManager` / 내비 안내: Audio Focus
-
-### 가상 차량으로 시험하기 (Pleos Virtual Console)
-1. 디버그 패널에서 **Pleos 차량** 선택
-2. PC에서 `adb forward tcp:8088 tcp:8088` 실행 후 브라우저로 http://127.0.0.1:8088/ 접속
-3. 기어 **D** + 주행거리(Odometer) 1km씩 증가 → 이야기 진행 / 기어 **P** → 정차 이야기
-
-- 에뮬레이터는 **Cold boot**로 켜야 차량 데이터 사용 가능
-- 디버그 패널·시연 모드는 디버그 빌드 전용 (릴리스 빌드는 처음부터 Pleos 차량 데이터 사용)
-
-### 빌드·테스트
-```bash
-./gradlew assembleDebug        # APK → app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest    # 단위 테스트 (이야기 진행 규칙·안전 필터·차량 규칙 등)
-```
-
-### 폴더 구조
-```
-app/src/main/
-  assets/stories/        이야기 데이터 (JSON) — 장면·갈림길·결말·정차 이야기
-  java/com/roadnovel/
-    story/               이야기 진행 엔진 (단위 테스트)
-    data/vehicle/        차량 데이터 (Pleos Vehicle·AAOS / 가상 차량)
-    data/navi/           내비 남은 시간
-    data/save/           진행 저장·들어 본 결말·대사 신고 기록
-    voice/               낭독·음성 인식
-    ai/                  AI 추가 대사 + 안전 필터
-    audio/               효과음·배경음·오디오 우선순위
-    ui/                  화면
-    di/                  설정 (음성·AI·차량 엔진 고르기)
-app/src/test/            단위 테스트
-docs/screenshots/        에뮬레이터 실행 화면
-tools/make_sounds.py     효과음·배경음 생성 스크립트
-prototype/               브라우저용 체험 시제품 (HTML)
-```
-
 ### 사용한 리소스
 
 | 리소스 | 출처 | 라이선스 · 이용 조건 |
@@ -145,8 +89,5 @@ prototype/               브라우저용 체험 시제품 (HTML)
 | 체험용 시제품 글꼴 (Gowun Batang, Noto Sans KR) | Google Fonts에서 웹으로 불러옴 — 저장소에 파일 없음 | SIL Open Font License 1.1 |
 | Pleos Connect SDK | 빌드할 때 Pleos Playground 저장소에서 내려받음 — 저장소에 파일 없음 | Pleos Playground 이용 약관 |
 | 그 밖의 라이브러리 (AndroidX, Jetpack Compose, Hilt, Room, kotlinx) | 빌드할 때 내려받음 | Apache License 2.0 |
-
-### 기술 스택
-Kotlin · Jetpack Compose · Coroutines/Flow · Hilt · Room · kotlinx.serialization · Pleos Connect SDK
 
 </details>
