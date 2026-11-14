@@ -31,3 +31,7 @@ __pycache__/
 
 # 팀원 개인정보가 담긴 기획서 등 — 절대 올리지 않음
 docs/Claude outputs/
+
+# docs는 README용 화면(screenshots)만 올린다 (나머지는 팀 내부 자료)
+docs/*
+!docs/screenshots/
