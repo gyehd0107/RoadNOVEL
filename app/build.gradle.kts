@@ -16,6 +16,9 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+
+        // 음성 엔진: "android"(기본 TTS/STT) / "pleos"(Pleos SDK) / "mock"(자막만·버튼만)
+        buildConfigField("String", "VOICE_ENGINE", "\"android\"")
     }
 
     buildTypes {
@@ -33,6 +36,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -17,6 +17,12 @@ import com.roadnovel.story.Phase
 import com.roadnovel.story.Story
 import com.roadnovel.story.StoryEngine
 import com.roadnovel.story.StoryRepository
+import com.roadnovel.story.VoiceStyle
+import com.roadnovel.voice.Narrator
+import com.roadnovel.voice.SubtitleNarrator
+import com.roadnovel.voice.VoiceInput
+import kotlinx.coroutines.async
+import kotlinx.coroutines.selects.select
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
@@ -58,6 +64,8 @@ data class UiState(
     val badges: List<EarnedBadge> = emptyList(),
     /** "저장할까요?" 대화상자 */
     val quitDialog: Boolean = false,
+    /** false면 소리 없이 자막만 */
+    val soundOn: Boolean = true,
     val loadError: String? = null,
 ) {
     val recommendedMin: Int? get() = etaMin?.let(::recommendLength)
@@ -131,7 +139,13 @@ class RoadNovelViewModel @Inject constructor(
     private val mockNavi: MockNaviDataSource,
     private val navi: NaviDataSource,
     private val saves: SaveRepository,
+    private val narrator: Narrator,
+    private val voiceInput: VoiceInput,
 ) : ViewModel() {
+
+    /** "자막만" 모드일 때 쓰는 조용한 낭독기 */
+    private val silent = SubtitleNarrator()
+    private val activeNarrator: Narrator get() = if (_ui.value.soundOn) narrator else silent
 
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -229,6 +243,7 @@ class RoadNovelViewModel @Inject constructor(
     fun quitStory() {
         if (engine == null) return goHome()
         paused.value = true
+        narrator.stop() // 읽던 줄은 "계속 듣기" 하면 처음부터 다시 읽음
         _ui.update { it.copy(quitDialog = true) }
     }
 
@@ -254,6 +269,13 @@ class RoadNovelViewModel @Inject constructor(
     /** 디버그: 앱을 진짜로 강제 종료 (임시 저장 복구 시연용) */
     fun forceKill() {
         android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    /** 🔊 소리 켜짐 ↔ 🔇 자막만 */
+    fun toggleSound() {
+        val on = !_ui.value.soundOn
+        if (!on) narrator.stop()
+        _ui.update { it.copy(soundOn = on) }
     }
 
     // ------------------------------------------------------------------
@@ -317,9 +339,9 @@ class RoadNovelViewModel @Inject constructor(
                         showToast("🏕️ 정차 이벤트: 탐험대도 잠깐 쉬어요")
                     }
                     setCaption(e, a)
-                    // 음성(M4) 대신 글자 수만큼 자막을 보여 준다
-                    delay(lineMillis(a.line.text))
-                    e.lineDone()
+                    activeNarrator.speak(a.line.text, voiceOf(e, a.line.who))
+                    // 읽는 도중 "그만하기"로 멈췄으면 이 줄은 끝난 게 아님 → 나중에 다시 읽음
+                    if (!paused.value) e.lineDone()
                 }
                 // TODO(M6): Pleos LLM으로 추가 대사 생성. 지금은 건너뜀
                 is EngineAction.RequestAiLines -> e.supplyAiLines(emptyList())
@@ -336,38 +358,80 @@ class RoadNovelViewModel @Inject constructor(
         }
     }
 
-    /** 질문을 띄우고 버튼을 기다린다. 시간이 지나면 엔진 규칙대로 한 번 더 묻거나 기본값 */
+    /**
+     * 질문을 읽고(TTS) → 음성 대답을 듣는다(STT). 동승자는 화면 버튼으로도 고를 수 있다.
+     * 못 알아들으면 엔진 규칙대로 한 번 더 묻고, 그래도 안 되면 기본값.
+     */
     private suspend fun handleChoice(e: StoryEngine, a: EngineAction.AskChoice) {
         val answer = CompletableDeferred<Int>()
         choiceAnswer = answer
         val timeout = a.choice.timeoutSec
-        val picked = coroutineScope {
-            val countdown = launch {
-                for (left in timeout downTo 1) {
-                    setChoice(
-                        ChoiceUi(
-                            question = if (a.attempt > 1) "다시 한 번 물어볼게요. ${a.choice.question}" else a.choice.question,
-                            options = a.choice.options.map { it.label },
-                            defaultIndex = a.choice.defaultIndex,
-                            secondsLeft = left,
-                            attempt = a.attempt,
-                        )
-                    )
-                    delay(1000)
-                }
+        val question = if (a.attempt > 1) "다시 한 번 물어볼게요. ${a.choice.question}" else a.choice.question
+        fun show(left: Int) = setChoice(
+            ChoiceUi(
+                question = question,
+                options = a.choice.options.map { it.label },
+                defaultIndex = a.choice.defaultIndex,
+                secondsLeft = left,
+                attempt = a.attempt,
+            )
+        )
+        show(timeout)
+
+        val outcome: ChoiceOutcome? = coroutineScope {
+            // 질문 읽는 동안에도 버튼은 누를 수 있다
+            val asking = async { activeNarrator.speak(question, voiceOf(e, "narrator")) }
+            select<Unit> {
+                asking.onAwait { }
+                answer.onAwait { }
             }
-            withTimeoutOrNull(timeout * 1000L) { answer.await() }.also { countdown.cancel() }
+            if (answer.isCompleted) {
+                activeNarrator.stop(); asking.cancel()
+                return@coroutineScope ChoiceOutcome.Button(answer.await())
+            }
+            val countdown = launch {
+                for (left in timeout downTo 1) { show(left); delay(1000) }
+            }
+            val result = withTimeoutOrNull(timeout * 1000L) {
+                val listening = async { voiceInput.listen(timeout) }
+                val first = select<ChoiceOutcome?> {
+                    answer.onAwait { ChoiceOutcome.Button(it) }
+                    listening.onAwait { heard -> heard?.let { ChoiceOutcome.Voice(it) } }
+                }
+                listening.cancel()
+                // 음성 인식이 실패하면(인식기 없음 등) 남은 시간 동안 버튼을 기다린다
+                first ?: ChoiceOutcome.Button(answer.await())
+            }
+            countdown.cancel()
+            result
         }
         choiceAnswer = null
         setChoice(null)
-        // TODO(M4): 음성 인식 결과를 e.answerChoice(들은 말)로 넘긴다
-        val result = if (picked != null) e.pickChoice(picked) else e.answerChoice(null)
-        if (result is ChoiceResult.Picked) {
-            val how = if (result.method == com.roadnovel.story.ChoiceMethod.DEFAULT) " (대답이 없어서 기본 선택)" else ""
-            showToast("🗺️ 탐험대의 선택: ${result.option.label}$how")
+
+        val result = when (outcome) {
+            is ChoiceOutcome.Button -> e.pickChoice(outcome.index)
+            is ChoiceOutcome.Voice -> {
+                showToast("🎤 \"${outcome.heard}\" 라고 들었어요")
+                e.answerChoice(outcome.heard)
+            }
+            null -> e.answerChoice(null) // 시간 초과
+        }
+        when (result) {
+            is ChoiceResult.Picked -> {
+                val how = if (result.method == com.roadnovel.story.ChoiceMethod.DEFAULT) " (대답이 없어서 기본 선택)" else ""
+                showToast("🗺️ 탐험대의 선택: ${result.option.label}$how")
+            }
+            ChoiceResult.AskAgain -> Unit // 다음 nextAction이 두 번째 질문
         }
         refreshPlayer(e)
     }
+
+    private sealed interface ChoiceOutcome {
+        data class Button(val index: Int) : ChoiceOutcome
+        data class Voice(val heard: String) : ChoiceOutcome
+    }
+
+    private fun voiceOf(e: StoryEngine, who: String): VoiceStyle = e.story.character(who)?.voice ?: VoiceStyle()
 
     private fun showEnding(e: StoryEngine, ending: Ending) {
         val st = e.state
@@ -389,6 +453,7 @@ class RoadNovelViewModel @Inject constructor(
     }
 
     private fun stopPlaying() {
+        narrator.stop()
         playJob?.cancel()
         playJob = null
         choiceAnswer = null
@@ -477,8 +542,5 @@ class RoadNovelViewModel @Inject constructor(
         const val TICK_MS = 100L
         const val WAIT_POLL_MS = 150L
         const val TOAST_MS = 3000L
-
-        /** 글자 수에 맞춘 자막 표시 시간 (프로토타입과 같은 계산 + 줄 사이 쉼) */
-        fun lineMillis(text: String): Long = 1200L + text.length * 95L + 400L
     }
 }

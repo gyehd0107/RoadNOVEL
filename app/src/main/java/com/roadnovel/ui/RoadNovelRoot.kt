@@ -83,7 +83,15 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                             onBack = vm::goHome,
                             onStart = vm::startStory,
                         )
-                        ScreenId.PLAYER -> ui.player?.let { PlayerScreen(it, moving = ui.speedKmh >= 0.5f, onQuit = vm::quitStory) }
+                        ScreenId.PLAYER -> ui.player?.let {
+                            PlayerScreen(
+                                it,
+                                moving = ui.speedKmh >= 0.5f,
+                                soundOn = ui.soundOn,
+                                onToggleSound = vm::toggleSound,
+                                onQuit = vm::quitStory,
+                            )
+                        }
                         ScreenId.ENDING -> ui.ending?.let { EndingScreen(it, onHome = vm::goHome) }
                     }
                 }

@@ -6,6 +6,19 @@
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
+    <!-- 선택지에 음성으로 대답하기 (거부하면 화면 버튼으로) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Android 11+ : 시스템 TTS 엔진·음성 인식기를 찾을 수 있게 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".RoadNovelApp"
         android:allowBackup="false"

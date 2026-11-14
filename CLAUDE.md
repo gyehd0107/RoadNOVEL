@@ -44,6 +44,10 @@
 - **Vehicle SDK에는 속도 항목이 없다.** 속도·정차 판단은 AAOS 표준 `CarPropertyManager` + `VehiclePropertyIds.PERF_VEHICLE_SPEED`(또는 NaviHelper 주행 정보 이벤트)로 한다.
 - 이동 거리: 1순위 Vehicle SDK **Odometer**, 2순위 AAOS `PERF_ODOMETER`, 3순위 FusedLocation 위치 변화 누적.
 - 남은 시간: NaviHelper(내비 연동) — 내비가 있는 차량에서만 완전 지원.
+- **에뮬레이터에서 직접 확인한 사실 (Pleos_Connect_v2.1.0, API 34, 2026-11-14)**
+  - Android 기본 `TextToSpeech`: 등록된 TTS 엔진이 없음 (`onInit` = -1). `TTS_SERVICE`를 받는 `ai.pleos.playground.caas`(Pleos SpeechService)를 직접 지정해도 -1 → **소리를 내려면 Pleos TextToSpeech SDK가 필요**. 그 전까지는 자막만 모드로 자동 전환.
+  - Android 기본 `SpeechRecognizer`: `ai.umos.ambientai`로 연결되고 마이크도 켜지지만, 모델 파일 오류로 결과가 오지 않음 → 시간 초과 처리됨. **Pleos SpeechToText SDK가 필요**.
+  - document.pleos.ai 는 자바스크립트로 그려져 자동으로 읽히지 않음 → 사람이 문서 내용을 붙여 줘야 Pleos SDK 코드를 쓸 수 있다.
 
 ## 5. 폴더 구조 (목표)
 

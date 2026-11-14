@@ -41,7 +41,14 @@ import com.roadnovel.ui.theme.RN
 
 /** 재생 화면: 왼쪽 지도, 가운데 인물+자막, 아래 진행 바 */
 @Composable
-fun PlayerScreen(p: PlayerUi, moving: Boolean, onQuit: () -> Unit, modifier: Modifier = Modifier) {
+fun PlayerScreen(
+    p: PlayerUi,
+    moving: Boolean,
+    soundOn: Boolean,
+    onToggleSound: () -> Unit,
+    onQuit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scene = p.story.scene(p.sceneId)
     Row(
         modifier.fillMaxSize().padding(start = 30.dp, end = 30.dp, top = 8.dp, bottom = 24.dp),
@@ -113,6 +120,7 @@ fun PlayerScreen(p: PlayerUi, moving: Boolean, onQuit: () -> Unit, modifier: Mod
             ProgressBar(p)
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                SubButton(if (soundOn) "🔊 소리 켜짐" else "🔇 자막만", onClick = onToggleSound)
                 SubButton("■ 이야기 그만하기", onClick = onQuit)
                 Spacer(Modifier.weight(1f))
                 Text(
