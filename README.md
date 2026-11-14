@@ -88,7 +88,9 @@ CLAUDE.md                설계·규칙 문서
 |---|---|---|
 | 효과음·배경음 6개 (`app/src/main/res/raw/*.wav`) | **이 프로젝트에서 코드로 직접 합성** — [`tools/make_sounds.py`](tools/make_sounds.py) (파이썬 표준 라이브러리만 사용). 스크립트를 다시 실행하면 저장소의 파일과 바이트 단위로 똑같은 파일이 나와요 | 외부 음원 없음 → 저작권 문제 없음 (이 저장소의 일부) |
 | 앱 아이콘 (별 모양) | 코드로 직접 그린 벡터 (`res/drawable/ic_launcher_foreground.xml`) | 이 저장소의 일부 |
-| 이야기 "별지도 탐험대" (`assets/stories`) · 화면 시안 (`docs/화면시안`) | 팀이 직접 작성·제작 | 이 저장소의 일부 |
+| 이야기 "별지도 탐험대" (`app/src/main/assets/stories`) | AI(Claude)로 초안 작성 → 팀이 검토·수정 | 이 저장소의 일부 |
+| 화면 시안 (`docs/화면시안`) | AI(Claude)로 만든 HTML 시제품(`prototype/index.html`)의 화면 캡처 | 이 저장소의 일부 |
+| 앱 실행 화면 (`docs/screenshots`) | 실제 앱을 Pleos Connect Emulator에서 실행한 화면 | 이 저장소의 일부 |
 | 화면의 이모지 (🦊🐢🎵 등) | 기기(Android)의 시스템 글꼴로 표시 — 앱에 이미지·글꼴 파일을 넣지 않음 | 기기 제공 |
 | 체험용 시제품 글꼴 (`prototype/index.html`의 Gowun Batang, Noto Sans KR) | Google Fonts에서 웹으로 불러옴 — 저장소에 파일 없음 | SIL Open Font License 1.1 (상업 이용·재배포 가능) |
 | Pleos Connect SDK (Vehicle, TextToSpeech, SpeechToText, LLM) | Pleos Playground Maven 저장소에서 빌드할 때 내려받음 — 저장소에 SDK 파일 없음 | Pleos Playground 이용 약관을 따름 |
@@ -98,3 +100,7 @@ CLAUDE.md                설계·규칙 문서
 
 ## 기술 스택
 Kotlin · Jetpack Compose · Coroutines/Flow · Hilt · Room · kotlinx.serialization · Pleos Connect SDK (Vehicle, TextToSpeech, SpeechToText, LLM)
+
+## 개발 도구
+기획 정리, 앱 코드 작성, 테스트 작성에 AI 코딩 도구(Claude, Claude Code)를 활용했으며,
+기능 설계·검토·에뮬레이터 확인은 팀이 직접 했습니다.
