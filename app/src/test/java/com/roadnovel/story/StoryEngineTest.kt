@@ -80,6 +80,19 @@ class StoryEngineTest {
         assertTrue(e.nextAction() is EngineAction.Wait)
     }
 
+    @Test
+    fun `미리 써 둔 추가 대사는 AI가 아닌 EXTRA로 나온다`() {
+        val d = drive(20)
+        val e = d.engine
+        readAllLinesInstantly(e)
+        e.nextAction()
+        e.supplyAiLines(listOf(StoryLine("bolt", "삐빅!")), byModel = false)
+        val a = e.nextAction()
+        assertTrue(a is EngineAction.Speak && a.source == LineSource.EXTRA)
+        e.lineDone()
+        assertTrue(e.nextAction() is EngineAction.Wait)
+    }
+
     // ------------------------------------------------------------------
     // 3) 정차하면 interlude가 한 번만 (출발 전 정차는 무시)
     // ------------------------------------------------------------------

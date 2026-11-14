@@ -25,7 +25,7 @@ import com.roadnovel.story.StoryRepository
 import com.roadnovel.story.VoiceStyle
 import com.roadnovel.voice.Narrator
 import com.roadnovel.ai.DialogueGenerator
-import com.roadnovel.ai.FallbackDialogueGenerator
+import com.roadnovel.ai.ExtraLines
 import com.roadnovel.ai.StoryContext
 import com.roadnovel.story.StoryLine
 import kotlinx.coroutines.Deferred
@@ -187,7 +187,7 @@ class RoadNovelViewModel @Inject constructor(
     private var toastJob: Job? = null
     private var choiceAnswer: CompletableDeferred<Int>? = null
     /** 장면에 들어갈 때 미리 만들어 두는 AI 대사 (장면 id → 생성 작업) */
-    private val aiPrefetch = mutableMapOf<String, Deferred<List<StoryLine>>>()
+    private val aiPrefetch = mutableMapOf<String, Deferred<ExtraLines>>()
     private var latestSave: SavedProgress? = null
     /** "저장할까요?" 대화상자가 떠 있는 동안 이야기를 멈춤 */
     private val paused = MutableStateFlow(false)
@@ -360,6 +360,68 @@ class RoadNovelViewModel @Inject constructor(
 
     fun setEta(min: Int) = mockNavi.setRemainingMinutes(min)
 
+    // ------------------------------------------------------------------
+    // 시연 모드 (녹화용, 약 2분)
+    // ------------------------------------------------------------------
+
+    private var demoJob: Job? = null
+
+    /**
+     * 10분 이야기를 처음부터 자동으로 진행한다:
+     * 출발 → 장면 진행 → 정차 이야기 → 선택 → 그만하기·저장 → 이어 듣기 → 결말.
+     * 시간만 재지 않고 화면 상태(자막 종류·선택지·장면)를 보고 다음 단계로 넘어간다.
+     */
+    fun startDemo() {
+        demoJob?.cancel()
+        demoJob = viewModelScope.launch { runDemo() }
+    }
+
+    private suspend fun runDemo() {
+        val story = _ui.value.stories.firstOrNull() ?: return
+        setVehicleSource(VehicleSource.MOCK)
+        hideDebug()
+        selectStory(story.id)
+        selectLength(DEMO_LENGTH_MIN)
+        setSpeed(0f)
+        setTimeScale(10)
+        startStory()
+        showToast("🎬 시연 모드: 약 2분 동안 자동으로 진행돼요")
+
+        // 1) 출발
+        delay(2_500)
+        setSpeed(60f)
+        // 2) 0.5km쯤 달린 뒤 정차 → 정차 이야기 (출발 전 정차는 무시되므로 먼저 달린다)
+        delay(3_000)
+        setSpeed(0f)
+        until(25_000) { it.player?.caption?.source == LineSource.INTERLUDE }
+        until(30_000) { it.player?.caption?.source != LineSource.INTERLUDE }
+        setSpeed(60f)
+        // 3) 첫 갈림길: 잠깐 보여 준 뒤 2번(버섯 마을)
+        until(120_000) { it.player?.choice != null }
+        delay(DEMO_CHOICE_SHOW_MS)
+        pickChoice(1)
+        // 4) 버섯 마을을 조금 듣다가 그만하기 → 저장
+        until(15_000) { it.player?.sceneId == "s3b_village" }
+        delay(7_000)
+        quitStory()
+        delay(2_500)
+        finishQuit(save = true)
+        // 5) 홈의 이어 듣기 카드 → 이어 듣기
+        until(10_000) { it.screen == ScreenId.HOME && it.resume != null }
+        delay(3_500)
+        resumeStory()
+        setSpeed(60f)
+        // 6) 두 번째 갈림길: 1번(노래) → 결말
+        until(120_000) { it.player?.choice != null }
+        delay(DEMO_CHOICE_SHOW_MS)
+        pickChoice(0)
+        until(120_000) { it.screen == ScreenId.ENDING }
+    }
+
+    /** [cond]가 될 때까지 기다림 (시간이 지나면 그냥 다음으로) */
+    private suspend fun until(timeoutMs: Long, cond: (UiState) -> Boolean): Boolean =
+        withTimeoutOrNull(timeoutMs) { _ui.first(cond); true } ?: false
+
     /** 디버그: 차량 데이터 출처 [Mock(슬라이더) / Pleos 차량] */
     fun setVehicleSource(src: VehicleSource) {
         if (src == VehicleSource.PLEOS) pleosVehicle.start()
@@ -445,7 +507,7 @@ class RoadNovelViewModel @Inject constructor(
                     if (!paused.value) e.lineDone()
                 }
                 // TODO(M6): Pleos LLM으로 추가 대사 생성. 지금은 건너뜀
-                is EngineAction.RequestAiLines -> e.supplyAiLines(awaitAi(e, a))
+                is EngineAction.RequestAiLines -> awaitAi(e, a).let { e.supplyAiLines(it.lines, it.byModel) }
                 is EngineAction.Wait -> delay(WAIT_POLL_MS)
                 is EngineAction.AskChoice -> handleChoice(e, a)
                 is EngineAction.Finished -> {
@@ -534,20 +596,19 @@ class RoadNovelViewModel @Inject constructor(
         if (!ai.enabled || e.state.sceneId in aiPrefetch) return
         val ctx = StoryContext(e.story, e.state.sceneId, e.state.items)
         aiPrefetch[e.state.sceneId] = viewModelScope.async {
-            runCatching { dialogue.extraLines(ctx, ai.hint) }.getOrDefault(emptyList())
+            runCatching { dialogue.generate(ctx, ai.hint) }.getOrDefault(ExtraLines.NONE)
         }
     }
 
     /** CLAUDE.md 10장: 3초 안에 못 받으면 건너뛴다 */
-    private suspend fun awaitAi(e: StoryEngine, a: EngineAction.RequestAiLines): List<StoryLine> {
+    private suspend fun awaitAi(e: StoryEngine, a: EngineAction.RequestAiLines): ExtraLines {
         val job = aiPrefetch.remove(a.sceneId) ?: viewModelScope.async {
-            dialogue.extraLines(StoryContext(e.story, a.sceneId, e.state.items), a.hint)
+            runCatching { dialogue.generate(StoryContext(e.story, a.sceneId, e.state.items), a.hint) }.getOrDefault(ExtraLines.NONE)
         }
-        val lines = withTimeoutOrNull(AI_WAIT_MS) { job.await() }
-        if (lines == null) Log.i("RoadNovelViewModel", "AI 대사 ${AI_WAIT_MS}ms 안에 못 받음 → 건너뜀")
-        val used = (dialogue as? FallbackDialogueGenerator)?.lastUsed ?: dialogue.name
-        _ui.update { it.copy(aiStatus = if (lines.isNullOrEmpty()) "건너뜀" else used) }
-        return lines.orEmpty()
+        val result = withTimeoutOrNull(AI_WAIT_MS) { job.await() }
+        if (result == null) Log.i("RoadNovelViewModel", "추가 대사 ${AI_WAIT_MS}ms 안에 못 받음 → 건너뜀")
+        _ui.update { it.copy(aiStatus = if (result == null || result.lines.isEmpty()) "건너뜀" else result.from) }
+        return result ?: ExtraLines.NONE
     }
 
     private sealed interface ChoiceOutcome {
@@ -669,6 +730,8 @@ class RoadNovelViewModel @Inject constructor(
         const val WAIT_POLL_MS = 150L
         const val TOAST_MS = 3000L
         const val AI_WAIT_MS = 3_000L
+        const val DEMO_LENGTH_MIN = 10
+        const val DEMO_CHOICE_SHOW_MS = 3_500L
         const val TEST_AUDIO_DIR = "test_audio"
         /** 시험 녹음 파일 이름 → 화면에 보일 말 */
         val TEST_AUDIO_LABELS = mapOf("old_castle" to "오래된 성", "two" to "2번")

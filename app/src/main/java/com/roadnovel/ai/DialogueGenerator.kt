@@ -11,7 +11,19 @@ interface DialogueGenerator {
     /** 화면·로그용 이름 (예: "Pleos LLM", "Mock") */
     val name: String
 
-    suspend fun extraLines(context: StoryContext, hint: String): List<StoryLine>
+    suspend fun generate(context: StoryContext, hint: String): ExtraLines
+}
+
+/**
+ * 추가 대사 결과.
+ * @param byModel true면 언어 모델(Pleos LLM)이 실제로 만든 대사 → 화면에 "✨ AI" 표시.
+ *                false면 미리 써 둔 대사 → 표시 안 함.
+ * @param from 어디서 왔는지 (디버그 표시용)
+ */
+data class ExtraLines(val lines: List<StoryLine>, val byModel: Boolean, val from: String) {
+    companion object {
+        val NONE = ExtraLines(emptyList(), byModel = false, from = "없음")
+    }
 }
 
 /** AI에게 알려 줄 지금 이야기 상황 */

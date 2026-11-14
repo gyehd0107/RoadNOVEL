@@ -18,7 +18,8 @@ sealed interface EngineAction {
     data class Finished(val ending: Ending) : EngineAction
 }
 
-enum class LineSource { SCENE, INTERLUDE, AI }
+/** SCENE=이야기 대사, INTERLUDE=정차 이야기, AI=언어 모델이 만든 대사, EXTRA=미리 써 둔 추가 대사 */
+enum class LineSource { SCENE, INTERLUDE, AI, EXTRA }
 
 sealed interface ChoiceResult {
     data class Picked(val index: Int, val option: ChoiceOption, val method: ChoiceMethod) : ChoiceResult
@@ -145,7 +146,7 @@ class StoryEngine(
     /** 방금 받은 Speak 대사를 다 읽었어요 */
     fun lineDone() {
         when (speaking) {
-            LineSource.INTERLUDE, LineSource.AI -> extraQueue.removeFirstOrNull()
+            LineSource.INTERLUDE, LineSource.AI, LineSource.EXTRA -> extraQueue.removeFirstOrNull()
             LineSource.SCENE -> s = s.copy(lineIndex = s.lineIndex + 1)
             null -> Unit
         }
@@ -153,9 +154,10 @@ class StoryEngine(
     }
 
     /** AI 대사 결과. 실패했으면 빈 리스트 */
-    fun supplyAiLines(lines: List<StoryLine>) {
+    fun supplyAiLines(lines: List<StoryLine>, byModel: Boolean = true) {
+        val source = if (byModel) LineSource.AI else LineSource.EXTRA
         if (s.phase != Phase.AI_PENDING) return
-        lines.forEach { extraQueue.addLast(it to LineSource.AI) }
+        lines.forEach { extraQueue.addLast(it to source) }
         s = s.copy(phase = Phase.WAITING, waitSec = 0.0)
     }
 

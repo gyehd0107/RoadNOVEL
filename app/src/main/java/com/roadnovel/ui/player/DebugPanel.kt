@@ -51,6 +51,7 @@ fun DebugPanel(
     gear: String? = null,
     odometerKm: Double? = null,
     aiStatus: String = "-",
+    onStartDemo: () -> Unit = {},
     onSpeed: (Float) -> Unit,
     onTimeScale: (Int) -> Unit,
     onEta: (Int) -> Unit,
@@ -83,6 +84,8 @@ fun DebugPanel(
                 Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                // 녹화용: 10분 이야기를 약 2분 안에 처음부터 끝까지 자동 진행 (시작하면 패널은 숨겨짐)
+                Seg("🎬 시연 시작 (약 2분 자동 진행)", false, Modifier.fillMaxWidth(), onClick = onStartDemo)
                 LabelRow("차량 데이터 출처", "")
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Seg("Mock (슬라이더)", vehicleSource == VehicleSource.MOCK, Modifier.weight(1f)) { onVehicleSource(VehicleSource.MOCK) }

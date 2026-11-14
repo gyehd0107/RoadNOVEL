@@ -1,8 +1,6 @@
 package com.roadnovel.ai
 
-import com.roadnovel.story.StoryLine
-
-/** (순수 Kotlin) 먼저 [primary]로 해 보고, 결과가 없으면 [fallback]. 마지막에 어느 쪽을 썼는지 [lastUsed]에 남긴다 */
+/** (순수 Kotlin) 먼저 [primary]로 해 보고, 결과가 없으면 [fallback]. 결과에 누가 만들었는지가 함께 담긴다 */
 class FallbackDialogueGenerator(
     private val primary: DialogueGenerator,
     private val fallback: DialogueGenerator,
@@ -10,16 +8,8 @@ class FallbackDialogueGenerator(
 
     override val name get() = "${primary.name} → 안 되면 ${fallback.name}"
 
-    @Volatile var lastUsed: String = "-"
-        private set
-
-    override suspend fun extraLines(context: StoryContext, hint: String): List<StoryLine> {
-        val first = runCatching { primary.extraLines(context, hint) }.getOrDefault(emptyList())
-        if (first.isNotEmpty()) {
-            lastUsed = primary.name
-            return first
-        }
-        lastUsed = fallback.name
-        return fallback.extraLines(context, hint)
+    override suspend fun generate(context: StoryContext, hint: String): ExtraLines {
+        val first = runCatching { primary.generate(context, hint) }.getOrDefault(ExtraLines.NONE)
+        return if (first.lines.isNotEmpty()) first else fallback.generate(context, hint)
     }
 }

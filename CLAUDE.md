@@ -166,7 +166,7 @@ interface DialogueGenerator {        // LLM
 - 다음 장면의 AI 대사는 **현재 장면 재생 중에 미리 생성**해 둔다(네트워크 끊김 대비). 3초 안에 못 받으면 건너뛴다.
 - **구현 (M6, 2026-11-14)**: `ai/` — `DialogueGenerator`(인터페이스), `PromptBuilder`, `ResponseParser`(`인물id|대사`만, 틀린 줄은 버림), `SafetyFilter`(금칙어·40자·최대 3줄·없는 인물·모르는 이름 부르기), `MockDialogueGenerator`(장면별로 미리 쓴 대사, 같은 필터 통과), `PleosDialogueGenerator`, `FallbackDialogueGenerator`(Pleos → 결과 없으면 Mock).
   - 장면에 들어가는 순간 그 장면의 AI 대사를 미리 생성 → 대사가 끝나고 필요할 때 **3초만** 기다리고 못 받으면 건너뜀.
-  - 화면에서 AI 대사 줄은 인물 이름 옆에 **"✨ AI"** 표시. (Mock 대사도 같은 자리에 같은 표시 — 디버그 패널 "마지막 AI 대사"에서 출처 확인)
+  - **"✨ AI" 표시는 언어 모델(Pleos LLM)이 실제로 만든 대사에만** 붙인다 (`ExtraLines.byModel = true` → `LineSource.AI`). 미리 써 둔 대사는 `LineSource.EXTRA`로 표시 없이 읽는다. 출처는 디버그 패널 "마지막 AI 대사"에서 확인.
   - 엔진 선택: `app/build.gradle.kts`의 `AI_ENGINE` = `"mock"`(기본) / `"pleos"`.
 - **Pleos LLM SDK — 공식 사용 안내 문서 없음, SDK jar(javap)와 에뮬레이터로 직접 확인 (2026-11-14)**
   - Maven: `ai.pleos.playground:LLM` 존재 (2.1.2 / 2.1.3.1 / **2.1.3.2** 최신).
@@ -191,6 +191,9 @@ interface DialogueGenerator {        // LLM
 - **M5** 차량 데이터: Pleos Vehicle(Odometer) + 속도(CarPropertyManager) + NaviHelper 남은 시간
 - **M6** Pleos LLM 추가 대사 + SafetyFilter
 - **M7** 시연 다듬기: 디버그 패널, 효과음/배경음, 시연 시나리오 스크립트
+  - ✅ (2026-11-14) 시연 모드: 디버그 패널 "🎬 시연 시작" → 10분 이야기를 자동 진행 (`RoadNovelViewModel.runDemo`). 출발 → 장면 → 정차 이야기 → 선택(버섯 마을) → 그만하기·저장 → 이어 듣기 → 선택(노래) → 결말. 에뮬레이터에서 **1분 51초**. 시간만 재지 않고 화면 상태를 보고 다음 단계로 넘어감.
+  - ✅ README.md (심사용, 팀원 개인정보 없음), docs/screenshots (디버그 패널 없는 화면 위주)
+  - ⬜ 효과음/배경음 (저작권 없는 소스 + README에 출처)
 
 ## 13. 작업할 때 지킬 것
 

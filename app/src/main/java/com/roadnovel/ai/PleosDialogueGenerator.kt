@@ -45,7 +45,10 @@ class PleosDialogueGenerator(context: Context, config: PleosConfig) : DialogueGe
         }
     }.onFailure { Log.w(TAG, "LLM 초기화 실패: ${it.message}") }.getOrNull()
 
-    override suspend fun extraLines(context: StoryContext, hint: String): List<StoryLine> {
+    override suspend fun generate(context: StoryContext, hint: String): ExtraLines =
+        ExtraLines(lines(context, hint), byModel = true, from = name)
+
+    private suspend fun lines(context: StoryContext, hint: String): List<StoryLine> {
         val llm = llm ?: return emptyList()
         if (withTimeoutOrNull(CONNECT_WAIT_MS) { connected.await() } != true) return emptyList()
         val prompt = PromptBuilder.build(context, hint)

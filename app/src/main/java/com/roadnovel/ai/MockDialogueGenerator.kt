@@ -12,8 +12,8 @@ class MockDialogueGenerator(
 
     override val name = "Mock(미리 쓴 대사)"
 
-    override suspend fun extraLines(context: StoryContext, hint: String): List<StoryLine> =
-        SafetyFilter.check(lines[context.sceneId].orEmpty(), context.story).kept
+    override suspend fun generate(context: StoryContext, hint: String): ExtraLines =
+        ExtraLines(SafetyFilter.check(lines[context.sceneId].orEmpty(), context.story).kept, byModel = false, from = name)
 
     companion object {
         val STAR_MAP_LINES = mapOf(

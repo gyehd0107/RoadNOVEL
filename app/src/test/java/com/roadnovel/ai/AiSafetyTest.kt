@@ -54,19 +54,23 @@ class AiSafetyTest {
     @Test
     fun `Mock 대사도 안전 필터를 통과하고, 대사가 없는 장면은 빈 리스트`() = runBlocking {
         val mock = MockDialogueGenerator()
-        assertEquals(2, mock.extraLines(StoryContext(story, "s1_departure"), "").size)
-        assertEquals(2, mock.extraLines(StoryContext(story, "s3b_village"), "").size)
-        assertTrue(mock.extraLines(StoryContext(story, "s4_fog_bridge"), "").isEmpty())
+        val r = mock.generate(StoryContext(story, "s1_departure"), "")
+        assertEquals(2, r.lines.size)
+        assertEquals(false, r.byModel) // 미리 쓴 대사 → "✨ AI" 표시 안 함
+        assertEquals(2, mock.generate(StoryContext(story, "s3b_village"), "").lines.size)
+        assertTrue(mock.generate(StoryContext(story, "s4_fog_bridge"), "").lines.isEmpty())
     }
 
     @Test
     fun `앞 엔진이 빈 결과면 대신 Mock을 쓴다`() = runBlocking {
         val empty = object : DialogueGenerator {
             override val name = "빈 LLM"
-            override suspend fun extraLines(context: StoryContext, hint: String) = emptyList<StoryLine>()
+            override suspend fun generate(context: StoryContext, hint: String) = ExtraLines(emptyList(), byModel = true, from = name)
         }
         val g = FallbackDialogueGenerator(empty, MockDialogueGenerator())
-        assertEquals(2, g.extraLines(StoryContext(story, "s1_departure"), "").size)
-        assertEquals("Mock(미리 쓴 대사)", g.lastUsed)
+        val r = g.generate(StoryContext(story, "s1_departure"), "")
+        assertEquals(2, r.lines.size)
+        assertEquals("Mock(미리 쓴 대사)", r.from)
+        assertEquals(false, r.byModel)
     }
 }

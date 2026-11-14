@@ -98,7 +98,9 @@ fun PlayerScreen(
                                 Avatar(avatarFor(cap.who))
                                 Text(cap.name, style = MaterialTheme.typography.bodyLarge, color = RN.Sub)
                                 when (cap.source) {
+                                    // 언어 모델이 실제로 만든 대사에만 표시 (미리 써 둔 추가 대사는 표시 안 함)
                                     LineSource.AI -> Tag("✨ AI", RN.Violet)
+                                    LineSource.EXTRA -> Unit
                                     LineSource.INTERLUDE -> Tag("정차 이야기", RN.Teal)
                                     LineSource.SCENE -> Unit
                                 }
