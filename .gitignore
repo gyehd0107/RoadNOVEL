@@ -28,3 +28,6 @@ docs/ROAD_NOVEL_개발키트.zip
 # 파이썬 캐시
 __pycache__/
 *.pyc
+
+# 팀원 개인정보가 담긴 기획서 등 — 절대 올리지 않음
+docs/Claude outputs/
