@@ -82,18 +82,19 @@ prototype/               브라우저용 체험 시제품 (HTML)
 CLAUDE.md                설계·규칙 문서
 ```
 
-## 효과음·배경음 출처
-외부 음원은 **하나도 쓰지 않았어요.** 모든 효과음과 배경음은 이 저장소의 [`tools/make_sounds.py`](tools/make_sounds.py)(파이썬 표준 라이브러리만 사용)로 **직접 합성**한 것이라 저작권 걱정이 없어요.
+## 사용한 리소스
 
-| 소리 | 언제 |
-|---|---|
-| 밤하늘 배경음 (24초 반복, 대사를 읽을 땐 더 작게) | 이야기 재생 중 |
-| 글로켄슈필 3음 | 새 장면 |
-| 질문하는 두 음 / 짧은 반짝임 | 갈림길이 나올 때 / 선택했을 때 |
-| 낮고 포근한 종 | 정차 이야기 |
-| 짧은 팡파르 | 결말 |
+| 리소스 | 출처 | 라이선스 · 이용 조건 |
+|---|---|---|
+| 효과음·배경음 6개 (`app/src/main/res/raw/*.wav`) | **이 프로젝트에서 코드로 직접 합성** — [`tools/make_sounds.py`](tools/make_sounds.py) (파이썬 표준 라이브러리만 사용). 스크립트를 다시 실행하면 저장소의 파일과 바이트 단위로 똑같은 파일이 나와요 | 외부 음원 없음 → 저작권 문제 없음 (이 저장소의 일부) |
+| 앱 아이콘 (별 모양) | 코드로 직접 그린 벡터 (`res/drawable/ic_launcher_foreground.xml`) | 이 저장소의 일부 |
+| 이야기 "별지도 탐험대" (`assets/stories`) · 화면 시안 (`docs/화면시안`) | 팀이 직접 작성·제작 | 이 저장소의 일부 |
+| 화면의 이모지 (🦊🐢🎵 등) | 기기(Android)의 시스템 글꼴로 표시 — 앱에 이미지·글꼴 파일을 넣지 않음 | 기기 제공 |
+| 체험용 시제품 글꼴 (`prototype/index.html`의 Gowun Batang, Noto Sans KR) | Google Fonts에서 웹으로 불러옴 — 저장소에 파일 없음 | SIL Open Font License 1.1 (상업 이용·재배포 가능) |
+| Pleos Connect SDK (Vehicle, TextToSpeech, SpeechToText, LLM) | Pleos Playground Maven 저장소에서 빌드할 때 내려받음 — 저장소에 SDK 파일 없음 | Pleos Playground 이용 약관을 따름 |
+| 그 밖의 라이브러리 (AndroidX, Jetpack Compose, Hilt, Room, kotlinx) | Google Maven · Maven Central에서 빌드할 때 내려받음 | Apache License 2.0 |
 
-다시 만들려면: `python tools/make_sounds.py` → `app/src/main/res/raw/`
+소리를 다시 만들려면: `python tools/make_sounds.py` → `app/src/main/res/raw/`
 
 ## 기술 스택
 Kotlin · Jetpack Compose · Coroutines/Flow · Hilt · Room · kotlinx.serialization · Pleos Connect SDK (Vehicle, TextToSpeech, SpeechToText, LLM)
