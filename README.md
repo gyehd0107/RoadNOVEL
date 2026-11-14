@@ -100,7 +100,3 @@ CLAUDE.md                설계·규칙 문서
 
 ## 기술 스택
 Kotlin · Jetpack Compose · Coroutines/Flow · Hilt · Room · kotlinx.serialization · Pleos Connect SDK (Vehicle, TextToSpeech, SpeechToText, LLM)
-
-## 개발 도구
-기획 정리, 앱 코드 작성, 테스트 작성에 AI 코딩 도구(Claude, Claude Code)를 활용했으며,
-기능 설계·검토·에뮬레이터 확인은 팀이 직접 했습니다.
