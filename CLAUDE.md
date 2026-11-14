@@ -66,6 +66,7 @@
   - TTS(ON_DEVICE): `initialize` 성공 → `speak(text, true)` → `onDone` 정상 동작. 대사 길이에 비례해 약 4~7초. `onError`/응답 없음이면 그 줄은 자막만 보여 주고 넘어감.
   - STT(ON_DEVICE): `sendAudio(16kHz·16bit·mono PCM)` + `completeAudioSend()`로 인식 성공 ("오래된 성" → "오래된 성"). **숫자는 한글로 나올 수 있음** ("2번" → "두 번") → StoryEngine이 한글 수사를 숫자로 바꿔 비교.
   - `request()`(실제 마이크): `ReadyToStartRecognition`까지는 오지만 에뮬레이터의 호스트 마이크 입력이 꺼져 있으면 인식이 시작되지 않고 시간 초과 → 버튼/기본값.
+  - **실제 마이크 인식 확인 (2026-11-15)**: 호스트 마이크를 켜면 "오래된 성"·"버섯마을" 모두 인식되어 선택됨. 주의: SDK가 `onEndedRecognition`을 최종 `onUpdated(..., true)`보다 **먼저** 보냄 → "끝"에서 바로 실패 처리하면 결과를 버림. 그래서 1초 기다린 뒤 실패로 처리. 인식이 결과 없이 끝나면 제한 시간 안에서 마이크를 다시 연다. 가끔 잘못 알아듣기도 함 (예: "헐").
   - Android 기본 `TextToSpeech`/`SpeechRecognizer`는 이 에뮬레이터에서 동작하지 않음 (TTS 엔진 없음, 인식 모델 파일 오류) → `VOICE_ENGINE`은 `"pleos"`가 기본.
   - 에뮬레이터 AVD: `fastboot.forceColdBoot=yes`(항상 cold boot), `hw.audioInput=yes`. 호스트 마이크는 실행 중 Extended Controls → Microphone에서 켜야 함 (설정 파일에 저장 안 됨).
   - 시연용: 디버그 빌드의 디버그 패널에서 선택지가 떠 있을 때 "오래된 성" / "2번" 버튼 → 시험 녹음(`app/src/debug/assets/test_audio`)을 `sendAudio`로 보냄.

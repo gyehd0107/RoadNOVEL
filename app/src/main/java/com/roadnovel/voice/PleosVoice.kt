@@ -160,7 +160,11 @@ class PleosVoiceInput(context: Context, private val config: PleosConfig) : Voice
         override fun onUpdatedRms(rms: Double) = Unit
         override fun onEndedRecognition() {
             Log.i(TAG, "인식 끝${if (injecting) " (시험 음성 대기 중 → 무시)" else ""}")
-            if (!injecting) current?.complete(null) // 최종 결과 없이 끝났으면 실패
+            if (injecting) return
+            // SDK는 "인식 끝"을 최종 결과보다 먼저 보낸다 (에뮬레이터 로그에서 확인)
+            // → 잠깐 기다렸다가 그때도 결과가 없으면 실패로 처리
+            val waiting = current ?: return
+            mainHandler.postDelayed({ waiting.complete(null) }, FINAL_RESULT_GRACE_MS)
         }
         override fun onError(errorType: SttError) {
             Log.w(TAG, "STT 오류: $errorType${if (injecting) " (시험 음성 대기 중 → 무시)" else ""}")
@@ -223,5 +227,8 @@ class PleosVoiceInput(context: Context, private val config: PleosConfig) : Voice
     private companion object {
         const val TAG = "PleosVoiceInput"
         const val INIT_WAIT_MS = 5_000L
+        const val FINAL_RESULT_GRACE_MS = 1_000L
     }
+
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 }

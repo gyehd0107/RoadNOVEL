@@ -720,14 +720,23 @@ class RoadNovelViewModel @Inject constructor(
                 for (left in timeout downTo 1) { show(left); delay(1000) }
             }
             val result = withTimeoutOrNull(timeout * 1000L) {
-                val listening = async { voiceInput.listen(timeout) }
-                val first = select<ChoiceOutcome?> {
-                    answer.onAwait { ChoiceOutcome.Button(it) }
-                    listening.onAwait { heard -> heard?.let { ChoiceOutcome.Voice(it) } }
+                val startedAt = System.currentTimeMillis()
+                var picked: ChoiceOutcome? = null
+                // 인식이 아무 말 없이 끝나면(잡음·짧은 침묵) 남은 시간 동안 마이크를 다시 연다
+                while (picked == null) {
+                    val leftSec = timeout - ((System.currentTimeMillis() - startedAt) / 1000).toInt()
+                    if (leftSec < 2) break
+                    val tryStart = System.currentTimeMillis()
+                    val listening = async { voiceInput.listen(leftSec) }
+                    picked = select<ChoiceOutcome?> {
+                        answer.onAwait { ChoiceOutcome.Button(it) }
+                        listening.onAwait { heard -> heard?.let { ChoiceOutcome.Voice(it) } }
+                    }
+                    listening.cancel()
+                    // 인식기가 바로 실패하면(인식기 없음 등) 다시 열지 않고 버튼만 기다린다
+                    if (picked == null && System.currentTimeMillis() - tryStart < 1_000) break
                 }
-                listening.cancel()
-                // 음성 인식이 실패하면(인식기 없음 등) 남은 시간 동안 버튼을 기다린다
-                first ?: ChoiceOutcome.Button(answer.await())
+                picked ?: ChoiceOutcome.Button(answer.await())
             }
             countdown.cancel()
             result
