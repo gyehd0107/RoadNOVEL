@@ -93,6 +93,21 @@ class StoryEngineTest {
     }
 
     @Test
+    fun `이어 듣기 직후 주차 중에는 정차 이야기를 틀지 않는다`() {
+        val first = drive(20, speed = 60f)
+        first.run(120.0) // 2km 달린 상태로 저장
+        val restored = TestDrive(StoryEngine(story, 20, restore = first.engine.state)).speed(0f)
+        restored.run(60.0) // 다음 주행: 아직 주차 중
+        val a = restored.engine.nextAction()
+        assertTrue(a is EngineAction.Speak && a.source == LineSource.SCENE)
+
+        restored.speed(40f).run(30.0) // 출발했다가
+        restored.speed(0f).run(6.0)   // 정차하면 그때는 나옴
+        val b = restored.engine.nextAction()
+        assertTrue(b is EngineAction.Speak && b.source == LineSource.INTERLUDE)
+    }
+
+    @Test
     fun `정차하면 정차 이야기를 한 번만 튼다`() {
         val d = drive(20, speed = 60f)
         val e = d.engine
@@ -328,6 +343,17 @@ class StoryEngineTest {
         assertEquals("s3b_village", second.engine.state.sceneId)
         val r = second.playToEnd("노래")
         assertEquals("friend", r.ending.id)
+    }
+
+    @Test
+    fun `남은 분량은 처음엔 전체 길이이고 진행할수록 줄어든다`() {
+        val d = drive(20, speed = 60f)
+        assertEquals(20, d.engine.remainingMinutesEstimate())
+        d.playUntilChoiceOrEnd()
+        d.engine.answerChoice("성")
+        // 지나온 weight 2 / 전체 6.2 → 남은 4.2/6.2 × 20 = 13.5 → 14분
+        assertEquals(14, d.engine.remainingMinutesEstimate())
+        assertEquals(0, d.playToEnd("노래").state.let { StoryEngine(story, 20, it).remainingMinutesEstimate() })
     }
 
     @Test

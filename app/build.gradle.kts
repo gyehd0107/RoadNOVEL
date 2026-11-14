@@ -58,5 +58,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
 
+    // Room (진행 저장·배지)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     testImplementation(libs.junit)
 }

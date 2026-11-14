@@ -121,7 +121,7 @@ fun PlayerScreen(p: PlayerUi, moving: Boolean, onQuit: () -> Unit, modifier: Mod
                     color = RN.Dim,
                 )
                 // 접힌 디버그 패널 자리
-                Spacer(Modifier.width(240.dp))
+                Spacer(Modifier.width(280.dp))
             }
         }
     }

@@ -39,6 +39,8 @@ fun DebugPanel(
     etaMin: Int?,
     stats: DebugStats?,
     onToggle: () -> Unit,
+    onHide: () -> Unit,
+    onForceKill: () -> Unit,
     onSpeed: (Float) -> Unit,
     onTimeScale: (Int) -> Unit,
     onEta: (Int) -> Unit,
@@ -47,19 +49,23 @@ fun DebugPanel(
     val shape = RoundedCornerShape(18.dp)
     Column(
         modifier
-            .width(if (open) 360.dp else 220.dp)
+            .width(if (open) 360.dp else 260.dp)
             .clip(shape)
             .background(Color(0xF00D111B))
             .border(2.dp, Color(0xFF34405E), shape),
     ) {
         // 머리글 (누르면 접기/펴기)
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onToggle).padding(horizontal = 16.dp),
+            Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onToggle).padding(start = 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("🚗 디버그 · ${speedKmh.roundToInt()}km/h ×$timeScale", color = RN.Text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             Text(if (open) "▼" else "▲", color = RN.Sub)
+            // 완전히 숨기기 (로고를 길게 누르면 다시 보임)
+            Box(Modifier.heightIn(min = 48.dp).width(44.dp).clickable(onClick = onHide), contentAlignment = Alignment.Center) {
+                Text("✕", color = RN.Sub, fontSize = 18.sp)
+            }
         }
         AnimatedVisibility(open) {
             Column(
@@ -92,6 +98,8 @@ fun DebugPanel(
                     valueRange = 5f..90f,
                     colors = SliderDefaults.colors(thumbColor = RN.Teal, activeTrackColor = RN.Teal),
                 )
+                // 임시 저장 복구 시연: 앱을 진짜로 죽인다 → 다시 켜면 홈에 "갑자기 멈췄어요" 카드
+                Seg("⚡ 앱 강제 종료 (임시 저장 복구 시연)", false, Modifier.fillMaxWidth(), danger = true, onClick = onForceKill)
                 if (stats != null) {
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         KV("이번 주행 거리", "%.2f km".format(stats.totalKm))

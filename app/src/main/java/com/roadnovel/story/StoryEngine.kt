@@ -63,6 +63,8 @@ class StoryEngine(
     private var stoppedSec = 0.0
     private var stopHandled = false
     private var lastOdometer: Double? = null
+    /** 이번 실행(앱을 켠 뒤)에 달린 거리. 저장하지 않는다 — 이어 듣기 직후 주차 중 정차 이야기 방지 */
+    private var sessionKm = 0.0
     private val speedSamples = ArrayDeque<Pair<Double, Double>>() // (elapsedSec, totalKm)
 
     // =====================================================================
@@ -183,6 +185,7 @@ class StoryEngine(
         if (dtSec <= 0.0 || s.phase == Phase.ENDED) return
 
         val dKm = distanceDelta(dtSec, speedKmh, odometerKm)
+        sessionKm += dKm
         val elapsed = s.elapsedSec + dtSec
         val total = s.totalKm + dKm
         s = s.copy(
@@ -212,6 +215,14 @@ class StoryEngine(
     private fun ownWeight(): Double = if (currentScene.ending != null) 0.0 else currentScene.weight
 
     fun movedInScene(): Double = s.totalKm - s.sceneStartKm
+
+    /** 남은 분량(분) 어림값: 결말까지 가장 긴 경로 기준 (이어 듣기 카드용) */
+    fun remainingMinutesEstimate(): Int {
+        if (s.phase == Phase.ENDED) return 0
+        val remaining = longestWeight(s.sceneId)
+        val total = (s.doneWeight + remaining).coerceAtLeast(MIN_WEIGHT)
+        return kotlin.math.ceil(s.lengthMin * remaining / total).toInt()
+    }
 
     /** 이 시간 넘게 기다리면 거리와 상관없이 넘어감 (규칙 6) */
     fun stallLimitSec(): Double {
@@ -348,7 +359,7 @@ class StoryEngine(
         }
         stoppedSec += dtSec
         if (stoppedSec < STOP_HOLD_SEC || stopHandled) return
-        if (s.totalKm < MIN_KM_BEFORE_INTERLUDE) return // 출발 전 정차는 무시
+        if (sessionKm < MIN_KM_BEFORE_INTERLUDE) return // 이번 주행에서 출발 전 정차는 무시
         stopHandled = true // 한 번 정차에 한 번만
         pendingInterlude = story.interludes.firstOrNull {
             it.trigger == TRIGGER_VEHICLE_STOPPED && it.id !in s.usedInterludes

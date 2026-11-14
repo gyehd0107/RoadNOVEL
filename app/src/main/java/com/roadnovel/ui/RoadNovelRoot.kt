@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -44,6 +46,7 @@ import com.roadnovel.ui.home.HomeScreen
 import com.roadnovel.ui.player.ChoiceOverlay
 import com.roadnovel.ui.player.DebugPanel
 import com.roadnovel.ui.player.PlayerScreen
+import com.roadnovel.ui.player.QuitDialog
 import com.roadnovel.ui.select.SelectScreen
 import com.roadnovel.ui.theme.RN
 import java.time.LocalTime
@@ -55,16 +58,24 @@ import kotlinx.coroutines.delay
 fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
     val ui by vm.ui.collectAsState()
 
-    BackHandler(enabled = ui.screen != ScreenId.HOME) { vm.goHome() }
+    // 뒤로 가기: 재생 중이면 "저장할까요?", 아니면 홈으로
+    BackHandler(enabled = ui.screen != ScreenId.HOME) {
+        if (ui.screen == ScreenId.PLAYER) vm.quitStory() else vm.goHome()
+    }
 
     Box(Modifier.fillMaxSize().background(RN.Bg)) {
         NightSky()
         Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-            TopBar(ui)
+            TopBar(ui, onLogoLongPress = vm::showDebug)
             Box(Modifier.weight(1f)) {
                 Crossfade(ui.screen, label = "screen") { screen ->
                     when (screen) {
-                        ScreenId.HOME -> HomeScreen(onNewStory = vm::goSelect)
+                        ScreenId.HOME -> HomeScreen(
+                            resume = ui.resume,
+                            badges = ui.badges,
+                            onResume = vm::resumeStory,
+                            onNewStory = vm::goSelect,
+                        )
                         ScreenId.SELECT -> SelectScreen(
                             ui = ui,
                             onSelectStory = vm::selectStory,
@@ -85,8 +96,17 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
             choice?.let { ChoiceOverlay(it, onPick = vm::pickChoice) }
         }
 
+        // "저장할까요?" 대화상자
+        AnimatedVisibility(ui.screen == ScreenId.PLAYER && ui.quitDialog, enter = fadeIn(), exit = fadeOut()) {
+            QuitDialog(
+                onSave = { vm.finishQuit(save = true) },
+                onDiscard = { vm.finishQuit(save = false) },
+                onContinue = vm::cancelQuit,
+            )
+        }
+
         // 디버그 패널 (재생 화면 오른쪽 아래)
-        if (ui.screen == ScreenId.PLAYER) {
+        if (ui.screen == ScreenId.PLAYER && !ui.debugHidden) {
             DebugPanel(
                 open = ui.debugOpen,
                 speedKmh = ui.speedKmh,
@@ -94,6 +114,8 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                 etaMin = ui.etaMin,
                 stats = ui.player?.stats,
                 onToggle = vm::toggleDebug,
+                onHide = vm::hideDebug,
+                onForceKill = vm::forceKill,
                 onSpeed = vm::setSpeed,
                 onTimeScale = vm::setTimeScale,
                 onEta = vm::setEta,
@@ -105,7 +127,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
         AnimatedVisibility(
             ui.toast != null,
             enter = fadeIn(), exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter).safeDrawingPadding().padding(top = 70.dp),
+            modifier = Modifier.align(Alignment.TopCenter).safeDrawingPadding().padding(top = 130.dp),
         ) {
             Text(
                 ui.toast.orEmpty(),
@@ -126,7 +148,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun TopBar(ui: UiState) {
+private fun TopBar(ui: UiState, onLogoLongPress: () -> Unit) {
     val moving = ui.speedKmh >= 0.5f
     Row(
         Modifier.fillMaxWidth().padding(start = 30.dp, end = 30.dp, top = 16.dp, bottom = 8.dp),
@@ -142,6 +164,7 @@ private fun TopBar(ui: UiState) {
             letterSpacing = 2.5.sp,
             fontSize = 18.sp,
             color = RN.Text,
+            modifier = Modifier.pointerInput(Unit) { detectTapGestures(onLongPress = { onLogoLongPress() }) },
         )
         Spacer(Modifier.weight(1f))
         Chip {

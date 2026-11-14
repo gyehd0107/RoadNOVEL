@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roadnovel.data.navi.MockNaviDataSource
 import com.roadnovel.data.navi.NaviDataSource
+import com.roadnovel.data.save.EarnedBadge
+import com.roadnovel.data.save.SavedProgress
+import com.roadnovel.data.save.SaveRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
 import com.roadnovel.data.vehicle.VehicleDataSource
 import com.roadnovel.story.ChoiceResult
@@ -23,6 +26,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -41,9 +48,16 @@ data class UiState(
     val speedKmh: Float = 0f,
     val timeScale: Int = 10,
     val debugOpen: Boolean = false,
+    /** 디버그 패널을 완전히 숨김 (스크린샷·실제 사용용). 로고를 길게 누르면 다시 보임 */
+    val debugHidden: Boolean = false,
     val player: PlayerUi? = null,
     val ending: EndingUi? = null,
     val toast: String? = null,
+    /** 홈 화면 이어 듣기 카드 (저장 기록이 없으면 null) */
+    val resume: ResumeUi? = null,
+    val badges: List<EarnedBadge> = emptyList(),
+    /** "저장할까요?" 대화상자 */
+    val quitDialog: Boolean = false,
     val loadError: String? = null,
 ) {
     val recommendedMin: Int? get() = etaMin?.let(::recommendLength)
@@ -56,6 +70,18 @@ fun recommendLength(etaMin: Int): Int = when {
     etaMin <= 25 -> 20
     else -> 30
 }
+
+data class ResumeUi(
+    val storyId: String,
+    val storyTitle: String,
+    val sceneTitle: String,
+    val lengthMin: Int,
+    val choices: List<String>,
+    val totalKm: Double,
+    val remainingMin: Int,
+    /** 임시 저장만 있음 = 지난번에 갑자기 멈춤 */
+    val isTemp: Boolean,
+)
 
 data class Caption(val who: String, val name: String, val text: String, val source: LineSource)
 
@@ -104,6 +130,7 @@ class RoadNovelViewModel @Inject constructor(
     private val vehicle: VehicleDataSource,
     private val mockNavi: MockNaviDataSource,
     private val navi: NaviDataSource,
+    private val saves: SaveRepository,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(UiState())
@@ -113,6 +140,9 @@ class RoadNovelViewModel @Inject constructor(
     private var playJob: Job? = null
     private var toastJob: Job? = null
     private var choiceAnswer: CompletableDeferred<Int>? = null
+    private var latestSave: SavedProgress? = null
+    /** "저장할까요?" 대화상자가 떠 있는 동안 이야기를 멈춤 */
+    private val paused = MutableStateFlow(false)
 
     // 차량 값 최신본 (VehicleDataSource 흐름에서 받음)
     private var speed: Float? = 0f
@@ -125,6 +155,14 @@ class RoadNovelViewModel @Inject constructor(
                 .onSuccess { list -> _ui.update { it.copy(stories = list, selectedStoryId = list.firstOrNull()?.id) } }
                 .onFailure { e -> _ui.update { it.copy(loadError = e.message) } }
         }
+        viewModelScope.launch {
+            val storiesFlow = _ui.map { it.stories }.distinctUntilChanged()
+            saves.latestProgress.combine(storiesFlow) { save, stories -> save to stories }.collect { (save, stories) ->
+                latestSave = save
+                _ui.update { it.copy(resume = save?.let { s -> resumeUi(s, stories) }) }
+            }
+        }
+        viewModelScope.launch { saves.badges.collect { b -> _ui.update { it.copy(badges = b) } } }
         viewModelScope.launch { vehicle.speedKmh.collect { speed = it } }
         viewModelScope.launch { vehicle.odometerKm.collect { odometer = it } }
         viewModelScope.launch {
@@ -145,7 +183,7 @@ class RoadNovelViewModel @Inject constructor(
 
     fun goHome() {
         stopPlaying()
-        _ui.update { it.copy(screen = ScreenId.HOME, player = null, ending = null) }
+        _ui.update { it.copy(screen = ScreenId.HOME, player = null, ending = null, quitDialog = false) }
     }
 
     fun selectStory(id: String) = _ui.update { it.copy(selectedStoryId = id) }
@@ -156,16 +194,30 @@ class RoadNovelViewModel @Inject constructor(
     fun startStory() {
         val s = _ui.value
         val story = s.selectedStory ?: return
-        val e = StoryEngine(story, s.lengthMin)
+        launchEngine(StoryEngine(story, s.lengthMin))
+        showToast("🚗 출발하면 이야기가 앞으로 나아가요. 디버그 패널에서 속도를 올려 보세요!")
+    }
+
+    /** 홈의 이어 듣기 카드: 저장된 장면부터 다시 */
+    fun resumeStory() {
+        val save = latestSave ?: return
+        val story = _ui.value.stories.firstOrNull { it.id == save.state.storyId } ?: return
+        launchEngine(StoryEngine(story, save.state.lengthMin, restore = save.state))
+        showToast("▶ 지난번 그 장면부터 이어서 들려줄게요")
+    }
+
+    private fun launchEngine(e: StoryEngine) {
         engine = e
+        paused.value = false
         _ui.update {
             it.copy(
                 screen = ScreenId.PLAYER,
-                player = PlayerUi(story = story, lengthMin = s.lengthMin, sceneId = e.state.sceneId, path = e.state.path),
+                player = PlayerUi(story = e.story, lengthMin = e.state.lengthMin, sceneId = e.state.sceneId, path = e.state.path),
                 ending = null,
+                quitDialog = false,
             )
         }
-        showToast("🚗 출발하면 이야기가 앞으로 나아가요. 디버그 패널에서 속도를 올려 보세요!")
+        refreshPlayer(e)
         playJob?.cancel()
         playJob = viewModelScope.launch {
             launch { clockLoop(e) }
@@ -173,8 +225,36 @@ class RoadNovelViewModel @Inject constructor(
         }
     }
 
-    /** 이야기 그만하기 (저장 확인은 M3에서) */
-    fun quitStory() = goHome()
+    /** 이야기 그만하기 → "저장할까요?" (그동안 이야기는 멈춤) */
+    fun quitStory() {
+        if (engine == null) return goHome()
+        paused.value = true
+        _ui.update { it.copy(quitDialog = true) }
+    }
+
+    /** 대화상자: 저장하고 끝내기(true) / 저장 안 함(false) */
+    fun finishQuit(save: Boolean) {
+        val e = engine ?: return goHome()
+        val state = e.state
+        stopPlaying()
+        viewModelScope.launch {
+            if (save) saves.save(state, isTemp = false) else saves.delete(state.storyId)
+            _ui.update { it.copy(quitDialog = false) }
+            goHome()
+            showToast(if (save) "💾 저장했어요. 다음 주행에서 이어서 들을 수 있어요" else "이번 이야기는 저장하지 않았어요")
+        }
+    }
+
+    /** 대화상자: 계속 듣기 */
+    fun cancelQuit() {
+        _ui.update { it.copy(quitDialog = false) }
+        paused.value = false
+    }
+
+    /** 디버그: 앱을 진짜로 강제 종료 (임시 저장 복구 시연용) */
+    fun forceKill() {
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
 
     // ------------------------------------------------------------------
     // 선택지 버튼 (동승자용)
@@ -189,6 +269,10 @@ class RoadNovelViewModel @Inject constructor(
     // ------------------------------------------------------------------
 
     fun toggleDebug() = _ui.update { it.copy(debugOpen = !it.debugOpen) }
+
+    fun hideDebug() = _ui.update { it.copy(debugHidden = true, debugOpen = false) }
+
+    fun showDebug() = _ui.update { it.copy(debugHidden = false) }
 
     fun setSpeed(kmh: Float) {
         car.setSpeed(kmh)
@@ -218,7 +302,15 @@ class RoadNovelViewModel @Inject constructor(
 
     /** 엔진이 시키는 일을 차례로 처리 */
     private suspend fun storyLoop(e: StoryEngine) {
+        var savedSceneId: String? = null
         while (true) {
+            paused.first { !it }
+            // 장면이 바뀔 때마다 자동 임시 저장 (앱이 갑자기 꺼져도 복구)
+            val st = e.state
+            if (st.phase != Phase.ENDED && st.sceneId != savedSceneId) {
+                saves.save(st, isTemp = true)
+                savedSceneId = st.sceneId
+            }
             when (val a = e.nextAction()) {
                 is EngineAction.Speak -> {
                     if (a.source == LineSource.INTERLUDE && _ui.value.player?.caption?.source != LineSource.INTERLUDE) {
@@ -234,6 +326,9 @@ class RoadNovelViewModel @Inject constructor(
                 is EngineAction.Wait -> delay(WAIT_POLL_MS)
                 is EngineAction.AskChoice -> handleChoice(e, a)
                 is EngineAction.Finished -> {
+                    // 결말 도착: 진행 기록 삭제 + 배지 저장
+                    saves.delete(e.story.id)
+                    saves.addBadge(e.story.id, a.ending)
                     showEnding(e, a.ending)
                     return
                 }
@@ -286,8 +381,7 @@ class RoadNovelViewModel @Inject constructor(
                     totalKm = st.totalKm,
                     elapsedSec = st.elapsedSec,
                     choices = st.choices.map { c -> c.label },
-                    // TODO(M3): 받은 배지를 저장해서 정확히 센다
-                    unseenCount = (allEndings - ending.id).size,
+                    unseenCount = (allEndings.toSet() - earnedEndings(e.story.id) - ending.id).size,
                 ),
             )
         }
@@ -345,6 +439,26 @@ class RoadNovelViewModel @Inject constructor(
 
     private inline fun updatePlayer(crossinline f: (PlayerUi) -> PlayerUi) =
         _ui.update { s -> s.player?.let { s.copy(player = f(it)) } ?: s }
+
+    private fun earnedEndings(storyId: String): Set<String> =
+        _ui.value.badges.filter { it.storyId == storyId }.map { it.endingId }.toSet()
+
+    private fun resumeUi(save: SavedProgress, stories: List<Story>): ResumeUi? {
+        val story = stories.firstOrNull { it.id == save.state.storyId } ?: return null
+        val st = save.state
+        val scene = story.scenes[st.sceneId] ?: return null
+        val remaining = runCatching { StoryEngine(story, st.lengthMin, restore = st).remainingMinutesEstimate() }.getOrDefault(0)
+        return ResumeUi(
+            storyId = story.id,
+            storyTitle = story.title,
+            sceneTitle = scene.title,
+            lengthMin = st.lengthMin,
+            choices = st.choices.map { it.label },
+            totalKm = st.totalKm,
+            remainingMin = remaining,
+            isTemp = save.isTemp,
+        )
+    }
 
     private fun showToast(msg: String) {
         toastJob?.cancel()

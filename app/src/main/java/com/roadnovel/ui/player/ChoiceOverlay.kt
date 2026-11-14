@@ -43,7 +43,7 @@ fun ChoiceOverlay(c: ChoiceUi, onPick: (Int) -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(Color(0xE605070C))
+            .background(Color(0xFF070A12))
             // 뒤 화면이 눌리지 않게 막음
             .clickable(remember { MutableInteractionSource() }, indication = null) {}
             .padding(30.dp),

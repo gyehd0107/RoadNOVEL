@@ -3,6 +3,10 @@ package com.roadnovel.di
 import android.content.Context
 import com.roadnovel.data.navi.MockNaviDataSource
 import com.roadnovel.data.navi.NaviDataSource
+import androidx.room.Room
+import com.roadnovel.data.save.RoadNovelDatabase
+import com.roadnovel.data.save.RoomSaveRepository
+import com.roadnovel.data.save.SaveRepository
 import com.roadnovel.data.story.AssetStoryRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
 import com.roadnovel.data.vehicle.VehicleDataSource
@@ -33,6 +37,15 @@ object AppModule {
     @Provides
     @Singleton
     fun vehicleDataSource(mock: MockVehicleDataSource): VehicleDataSource = mock
+
+    @Provides
+    @Singleton
+    fun database(@ApplicationContext context: Context): RoadNovelDatabase =
+        Room.databaseBuilder(context, RoadNovelDatabase::class.java, "roadnovel.db").build()
+
+    @Provides
+    @Singleton
+    fun saveRepository(db: RoadNovelDatabase): SaveRepository = RoomSaveRepository(db.saveDao())
 
     @Provides
     @Singleton
