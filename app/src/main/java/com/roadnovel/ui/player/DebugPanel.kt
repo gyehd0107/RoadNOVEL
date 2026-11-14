@@ -50,6 +50,7 @@ fun DebugPanel(
     pleosStatus: String = "",
     gear: String? = null,
     odometerKm: Double? = null,
+    aiStatus: String = "-",
     onSpeed: (Float) -> Unit,
     onTimeScale: (Int) -> Unit,
     onEta: (Int) -> Unit,
@@ -137,6 +138,7 @@ fun DebugPanel(
                         KV("평균 속도 추정", "${stats.avgKmh.roundToInt()} km/h")
                         KV("weight 1당 거리", "%.2f km".format(stats.kmPerWeight))
                         KV("얻은 물건 / 깃발", stats.itemsAndFlags)
+                        KV("마지막 AI 대사", aiStatus)
                     }
                 }
             }

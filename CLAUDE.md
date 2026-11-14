@@ -164,6 +164,16 @@ interface DialogueGenerator {        // LLM
 - 응답 형식은 `인물id|대사` 줄 단위로 받아서 파싱. 형식이 틀리면 버린다.
 - `SafetyFilter`: 금칙어 목록, 길이 제한, 등장하지 않는 인물 이름이면 버린다.
 - 다음 장면의 AI 대사는 **현재 장면 재생 중에 미리 생성**해 둔다(네트워크 끊김 대비). 3초 안에 못 받으면 건너뛴다.
+- **구현 (M6, 2026-11-14)**: `ai/` — `DialogueGenerator`(인터페이스), `PromptBuilder`, `ResponseParser`(`인물id|대사`만, 틀린 줄은 버림), `SafetyFilter`(금칙어·40자·최대 3줄·없는 인물·모르는 이름 부르기), `MockDialogueGenerator`(장면별로 미리 쓴 대사, 같은 필터 통과), `PleosDialogueGenerator`, `FallbackDialogueGenerator`(Pleos → 결과 없으면 Mock).
+  - 장면에 들어가는 순간 그 장면의 AI 대사를 미리 생성 → 대사가 끝나고 필요할 때 **3초만** 기다리고 못 받으면 건너뜀.
+  - 화면에서 AI 대사 줄은 인물 이름 옆에 **"✨ AI"** 표시. (Mock 대사도 같은 자리에 같은 표시 — 디버그 패널 "마지막 AI 대사"에서 출처 확인)
+  - 엔진 선택: `app/build.gradle.kts`의 `AI_ENGINE` = `"mock"`(기본) / `"pleos"`.
+- **Pleos LLM SDK — 공식 사용 안내 문서 없음, SDK jar(javap)와 에뮬레이터로 직접 확인 (2026-11-14)**
+  - Maven: `ai.pleos.playground:LLM` 존재 (2.1.2 / 2.1.3.1 / **2.1.3.2** 최신).
+  - API: `LLM(context, Mode.ON_DEVICE | Mode.SERVER)` → `initialize()` → `generateContent(prompt, ResultListener)`; `ResultListener.onResponse(String, Boolean)` / `onError(String)`. 그 밖에 `generateContentStream`, `startChat`/`sendMessage`, `setModelParameter(TEMPERATURE|MAX_TOKENS|MODEL_NAME)`, `registerApp(id, secret, OnServerConnectionListener)`. HYBRID 모드는 없음.
+  - 권한: SDK 매니페스트에 `pleos.car.permission.LLM_SERVICE`가 주석으로만 있음 → 앱에 선언해 둠 (설치 시 허용됨).
+  - **에뮬레이터(Pleos_Connect_v2.1.0) 결과: 응답 없음.** 서비스 로그 `[GAAS]OnDeviceLLMManagerImpl: startLLM ignored: on-device LLM is disabled`. → 기본값을 Mock으로 둠.
+  - SERVER 모드는 `local.properties`의 `pleos.clientId` / `pleos.clientSecret`이 있으면 `registerApp` 후 시도하도록 코드만 준비 (미시험).
 
 ## 11. 오디오·안전
 

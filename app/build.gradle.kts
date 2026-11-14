@@ -32,6 +32,10 @@ android {
 
         // Pleos 음성 모드: ON_DEVICE(앱 등록 불필요) / HYBRID(서버 우선, Client ID/Secret 필요)
         // local.properties 예:  pleos.mode=HYBRID   pleos.clientId=...   pleos.clientSecret=...
+        // AI 추가 대사: "mock"(미리 쓴 대사, 기본) / "pleos"(Pleos LLM → 실패하면 Mock)
+        // 에뮬레이터는 on-device LLM이 꺼져 있어 "pleos"로 해도 응답이 없다. SERVER는 local.properties의 Client ID 필요
+        buildConfigField("String", "AI_ENGINE", "\"mock\"")
+
         buildConfigField("String", "PLEOS_MODE", "\"${localProp("pleos.mode", "ON_DEVICE")}\"")
         buildConfigField("String", "PLEOS_CLIENT_ID", "\"${localProp("pleos.clientId")}\"")
         buildConfigField("String", "PLEOS_CLIENT_SECRET", "\"${localProp("pleos.clientSecret")}\"")
@@ -88,6 +92,8 @@ dependencies {
     implementation(libs.pleos.stt)
     // Pleos 차량 SDK (주행거리·기어)
     implementation(libs.pleos.vehicle)
+    // Pleos LLM SDK (AI 추가 대사, 공식 문서 없음 — SDK jar로 확인)
+    implementation(libs.pleos.llm)
 
     testImplementation(libs.junit)
 }

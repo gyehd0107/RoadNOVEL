@@ -13,6 +13,9 @@
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
     <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
 
+    <!-- Pleos LLM (SDK 매니페스트에 주석으로만 있음 — 필요할 수 있어 미리 선언) -->
+    <uses-permission android:name="pleos.car.permission.LLM_SERVICE" />
+
     <!-- 차량 데이터: Pleos Vehicle SDK 주행거리·기어 (SDK jar의 @RequiresCustomPermission 값) -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
     <!-- 차량 속도: AAOS PERF_VEHICLE_SPEED (실행 중 허용 필요) -->

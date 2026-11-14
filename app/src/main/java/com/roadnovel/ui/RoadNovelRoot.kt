@@ -131,6 +131,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                 pleosStatus = ui.pleosStatus,
                 gear = ui.gear?.label,
                 odometerKm = ui.odometerKm,
+                aiStatus = ui.aiStatus,
                 onSpeed = vm::setSpeed,
                 onTimeScale = vm::setTimeScale,
                 onEta = vm::setEta,

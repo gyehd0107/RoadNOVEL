@@ -98,7 +98,7 @@ fun PlayerScreen(
                                 Avatar(avatarFor(cap.who))
                                 Text(cap.name, style = MaterialTheme.typography.bodyLarge, color = RN.Sub)
                                 when (cap.source) {
-                                    LineSource.AI -> Tag("AI 대사", RN.Violet)
+                                    LineSource.AI -> Tag("✨ AI", RN.Violet)
                                     LineSource.INTERLUDE -> Tag("정차 이야기", RN.Teal)
                                     LineSource.SCENE -> Unit
                                 }

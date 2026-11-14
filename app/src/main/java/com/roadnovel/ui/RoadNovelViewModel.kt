@@ -24,6 +24,11 @@ import com.roadnovel.story.StoryEngine
 import com.roadnovel.story.StoryRepository
 import com.roadnovel.story.VoiceStyle
 import com.roadnovel.voice.Narrator
+import com.roadnovel.ai.DialogueGenerator
+import com.roadnovel.ai.FallbackDialogueGenerator
+import com.roadnovel.ai.StoryContext
+import com.roadnovel.story.StoryLine
+import kotlinx.coroutines.Deferred
 import com.roadnovel.voice.SubtitleNarrator
 import com.roadnovel.voice.VoiceInput
 import com.roadnovel.voice.TestAudioInput
@@ -89,6 +94,8 @@ data class UiState(
     val soundOn: Boolean = true,
     /** 디버그: 마이크 대신 보낼 수 있는 시험 녹음 이름들 (assets/test_audio 폴더의 .pcm 파일) */
     val testAudios: List<String> = emptyList(),
+    /** 디버그: 마지막 AI 대사를 어디서 받았는지 */
+    val aiStatus: String = "-",
     val loadError: String? = null,
 ) {
     val recommendedMin: Int? get() = etaMin?.let(::recommendLength)
@@ -164,6 +171,7 @@ class RoadNovelViewModel @Inject constructor(
     private val saves: SaveRepository,
     private val narrator: Narrator,
     private val voiceInput: VoiceInput,
+    private val dialogue: DialogueGenerator,
     @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -178,6 +186,8 @@ class RoadNovelViewModel @Inject constructor(
     private var playJob: Job? = null
     private var toastJob: Job? = null
     private var choiceAnswer: CompletableDeferred<Int>? = null
+    /** 장면에 들어갈 때 미리 만들어 두는 AI 대사 (장면 id → 생성 작업) */
+    private val aiPrefetch = mutableMapOf<String, Deferred<List<StoryLine>>>()
     private var latestSave: SavedProgress? = null
     /** "저장할까요?" 대화상자가 떠 있는 동안 이야기를 멈춤 */
     private val paused = MutableStateFlow(false)
@@ -422,6 +432,7 @@ class RoadNovelViewModel @Inject constructor(
             if (st.phase != Phase.ENDED && st.sceneId != savedSceneId) {
                 saves.save(st, isTemp = true)
                 savedSceneId = st.sceneId
+                prefetchAi(e)
             }
             when (val a = e.nextAction()) {
                 is EngineAction.Speak -> {
@@ -434,7 +445,7 @@ class RoadNovelViewModel @Inject constructor(
                     if (!paused.value) e.lineDone()
                 }
                 // TODO(M6): Pleos LLM으로 추가 대사 생성. 지금은 건너뜀
-                is EngineAction.RequestAiLines -> e.supplyAiLines(emptyList())
+                is EngineAction.RequestAiLines -> e.supplyAiLines(awaitAi(e, a))
                 is EngineAction.Wait -> delay(WAIT_POLL_MS)
                 is EngineAction.AskChoice -> handleChoice(e, a)
                 is EngineAction.Finished -> {
@@ -516,6 +527,29 @@ class RoadNovelViewModel @Inject constructor(
         refreshPlayer(e)
     }
 
+    /** 장면 대사를 읽는 동안 AI 대사를 미리 만든다 (네트워크·모델이 느려도 이야기가 멈추지 않게) */
+    private fun prefetchAi(e: StoryEngine) {
+        val scene = e.currentScene
+        val ai = scene.ai ?: return
+        if (!ai.enabled || e.state.sceneId in aiPrefetch) return
+        val ctx = StoryContext(e.story, e.state.sceneId, e.state.items)
+        aiPrefetch[e.state.sceneId] = viewModelScope.async {
+            runCatching { dialogue.extraLines(ctx, ai.hint) }.getOrDefault(emptyList())
+        }
+    }
+
+    /** CLAUDE.md 10장: 3초 안에 못 받으면 건너뛴다 */
+    private suspend fun awaitAi(e: StoryEngine, a: EngineAction.RequestAiLines): List<StoryLine> {
+        val job = aiPrefetch.remove(a.sceneId) ?: viewModelScope.async {
+            dialogue.extraLines(StoryContext(e.story, a.sceneId, e.state.items), a.hint)
+        }
+        val lines = withTimeoutOrNull(AI_WAIT_MS) { job.await() }
+        if (lines == null) Log.i("RoadNovelViewModel", "AI 대사 ${AI_WAIT_MS}ms 안에 못 받음 → 건너뜀")
+        val used = (dialogue as? FallbackDialogueGenerator)?.lastUsed ?: dialogue.name
+        _ui.update { it.copy(aiStatus = if (lines.isNullOrEmpty()) "건너뜀" else used) }
+        return lines.orEmpty()
+    }
+
     private sealed interface ChoiceOutcome {
         data class Button(val index: Int) : ChoiceOutcome
         data class Voice(val heard: String) : ChoiceOutcome
@@ -544,6 +578,8 @@ class RoadNovelViewModel @Inject constructor(
 
     private fun stopPlaying() {
         narrator.stop()
+        aiPrefetch.values.forEach { it.cancel() }
+        aiPrefetch.clear()
         playJob?.cancel()
         playJob = null
         choiceAnswer = null
@@ -632,6 +668,7 @@ class RoadNovelViewModel @Inject constructor(
         const val TICK_MS = 100L
         const val WAIT_POLL_MS = 150L
         const val TOAST_MS = 3000L
+        const val AI_WAIT_MS = 3_000L
         const val TEST_AUDIO_DIR = "test_audio"
         /** 시험 녹음 파일 이름 → 화면에 보일 말 */
         val TEST_AUDIO_LABELS = mapOf("old_castle" to "오래된 성", "two" to "2번")
