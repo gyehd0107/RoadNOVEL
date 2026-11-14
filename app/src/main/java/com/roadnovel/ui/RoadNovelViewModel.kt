@@ -534,6 +534,34 @@ class RoadNovelViewModel @Inject constructor(
     /** 디버그: 내비 안내가 끼어드는 상황 (진짜 내비 안내 용도로 오디오 포커스를 잡음) */
     fun simulateNavPrompt() = navSim.play()
 
+    /** Pleos 차량 데이터에 적용하는 시간 배속 (실주행 시연용, 평소에는 1) */
+    private var pleosTimeScale = 1.0
+
+    /**
+     * 실주행 시연 명령 (디버그 빌드에서만). 녹화 스크립트가 앱을 켤 때 넘겨준다 — 화면에는 디버그 패널이 나오지 않는다.
+     *   drive : Pleos 차량(가상 차량 콘솔) 신호로 동작, 10분 이야기, 시간 10배, 디버그 패널 숨김
+     *   nav   : 내비 안내가 끼어드는 상황
+     *   normal: 원래대로 (Mock, 배속 1)
+     */
+    fun demoCommand(cmd: String) {
+        if (!BuildConfig.DEBUG) return
+        when (cmd) {
+            "drive" -> {
+                pleosTimeScale = DRIVE_DEMO_SCALE
+                setVehicleSource(VehicleSource.PLEOS)
+                hideDebug()
+                selectLength(DEMO_LENGTH_MIN)
+            }
+            "nav" -> simulateNavPrompt()
+            "normal" -> {
+                pleosTimeScale = 1.0
+                setVehicleSource(VehicleSource.MOCK)
+                showDebug()
+            }
+        }
+        Log.i("RoadNovelViewModel", "시연 명령: $cmd")
+    }
+
     /** 디버그: 차량 데이터 출처 [Mock(슬라이더) / Pleos 차량] */
     fun setVehicleSource(src: VehicleSource) {
         if (src == VehicleSource.PLEOS) pleosVehicle.start()
@@ -603,8 +631,11 @@ class RoadNovelViewModel @Inject constructor(
         while (isActive) {
             delay(TICK_MS)
             // Mock은 배속을 적용해 가짜 차를 움직이고, Pleos 차량은 실제 시간 그대로
-            val simSec = if (source.value == VehicleSource.MOCK) car.advance(TICK_MS / 1000.0) else TICK_MS / 1000.0
-            e.tick(simSec, effectiveSpeedKmh(speed, gear), odometer)
+            val simSec = if (source.value == VehicleSource.MOCK) car.advance(TICK_MS / 1000.0) else TICK_MS / 1000.0 * pleosTimeScale
+            // Pleos 차량에서 속도 값이 실제로 들어오면 속도로 거리를 계산 (주행거리계는 1km 단위라 거침).
+            // 속도를 모를 때만 주행거리계를 쓴다.
+            val odo = if (source.value == VehicleSource.PLEOS && speed != null) null else odometer
+            e.tick(simSec, effectiveSpeedKmh(speed, gear), odo)
             refreshPlayer(e)
         }
     }
@@ -871,6 +902,8 @@ class RoadNovelViewModel @Inject constructor(
         const val AI_WAIT_MS = 3_000L
         const val DEMO_LENGTH_MIN = 10
         const val DEMO_CHOICE_SHOW_MS = 3_500L
+        /** 실주행 시연: 가상 차량의 시간을 10배로 (10분 이야기를 2~3분 안에) */
+        const val DRIVE_DEMO_SCALE = 10.0
         const val TEST_AUDIO_DIR = "test_audio"
         /** 시험 녹음 파일 이름 → 화면에 보일 말 */
         val TEST_AUDIO_LABELS = mapOf("old_castle" to "오래된 성", "two" to "2번")

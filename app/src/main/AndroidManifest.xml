@@ -45,6 +45,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:screenOrientation="landscape">
             <!-- 주행 중에도 열 수 있는 화면 (음성 우선, 조작 최소화) -->
             <meta-data

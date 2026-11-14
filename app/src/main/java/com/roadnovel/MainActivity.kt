@@ -13,7 +13,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.roadnovel.data.vehicle.DrivingRestriction
+import android.content.Intent
+import androidx.activity.viewModels
 import com.roadnovel.ui.RoadNovelRoot
+import com.roadnovel.ui.RoadNovelViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -27,6 +30,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var driving: DrivingRestriction
 
+    /** 화면(Compose)에서 쓰는 것과 같은 ViewModel */
+    private val vm: RoadNovelViewModel by viewModels()
+
     /** 차량 속도 권한을 묻기 전 설명 화면을 보여 줄지 */
     private var showSpeedNotice by mutableStateOf(false)
 
@@ -37,6 +43,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         askPermissions()
+        handleDemo(intent)
         setContent {
             RoadNovelTheme {
                 Box {
@@ -74,6 +81,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleDemo(intent)
+    }
+
+    /**
+     * 녹화용 실주행 시연 명령 (디버그 빌드에서만):
+     * adb shell am start -n com.roadnovel/.MainActivity --es demo drive|nav|normal
+     */
+    private fun handleDemo(intent: Intent?) {
+        if (!BuildConfig.DEBUG) return
+        intent?.getStringExtra(EXTRA_DEMO)?.let(vm::demoCommand)
+    }
+
     private fun missing(): List<String> = listOf(Manifest.permission.RECORD_AUDIO, CAR_SPEED)
         .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
 
@@ -83,5 +104,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val CAR_SPEED = "android.car.permission.CAR_SPEED"
+        const val EXTRA_DEMO = "demo"
     }
 }
