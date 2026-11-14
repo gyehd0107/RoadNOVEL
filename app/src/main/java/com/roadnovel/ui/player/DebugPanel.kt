@@ -52,6 +52,8 @@ fun DebugPanel(
     odometerKm: Double? = null,
     aiStatus: String = "-",
     onStartDemo: () -> Unit = {},
+    onNavPrompt: () -> Unit = {},
+    onPreviewRestricted: () -> Unit = {},
     onSpeed: (Float) -> Unit,
     onTimeScale: (Int) -> Unit,
     onEta: (Int) -> Unit,
@@ -132,6 +134,10 @@ fun DebugPanel(
                         }
                     }
                 }
+                // 주행 중 화면 미리보기 (PT·캡처용). 끄기: 로고 길게 누르기
+                Seg("🚦 주행 중 화면 미리보기", false, Modifier.fillMaxWidth(), onClick = onPreviewRestricted)
+                // 오디오 포커스 시험: 진짜 내비 안내 용도로 포커스를 잠깐 잡고 안내음을 냄
+                Seg("🧭 내비 안내 끼어들기 (소리 줄이기 시연)", false, Modifier.fillMaxWidth(), onClick = onNavPrompt)
                 // 임시 저장 복구 시연: 앱을 진짜로 죽인다 → 다시 켜면 홈에 "갑자기 멈췄어요" 카드
                 Seg("⚡ 앱 강제 종료 (임시 저장 복구 시연)", false, Modifier.fillMaxWidth(), danger = true, onClick = onForceKill)
                 if (stats != null) {

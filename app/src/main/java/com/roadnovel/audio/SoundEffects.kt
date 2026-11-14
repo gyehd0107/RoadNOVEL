@@ -26,6 +26,9 @@ interface SoundEffects {
 
     /** 🔇 자막만 모드면 모두 끔 */
     fun setEnabled(enabled: Boolean)
+
+    /** 내비 안내 등이 끼어들면 배경음을 아주 작게 */
+    fun setDucked(ducked: Boolean)
 }
 
 /** 소리 없음 (테스트·Mock용) */
@@ -36,6 +39,7 @@ class NoSoundEffects : SoundEffects {
     override fun stopBgm() = Unit
     override fun setSpeaking(speaking: Boolean) = Unit
     override fun setEnabled(enabled: Boolean) = Unit
+    override fun setDucked(ducked: Boolean) = Unit
 }
 
 class AndroidSoundEffects(context: Context) : SoundEffects {
@@ -60,6 +64,7 @@ class AndroidSoundEffects(context: Context) : SoundEffects {
     private var enabled = true
     private var speaking = false
     private var bgmWanted = false
+    private var ducked = false
 
     init {
         pool.setOnLoadCompleteListener { _, sampleId, status -> if (status == 0) loaded += sampleId }
@@ -113,8 +118,17 @@ class AndroidSoundEffects(context: Context) : SoundEffects {
         else if (bgmWanted) startBgm()
     }
 
+    override fun setDucked(ducked: Boolean) {
+        this.ducked = ducked
+        applyVolume()
+    }
+
     private fun applyVolume() {
-        val v = if (speaking) BGM_UNDER_VOICE else BGM_VOLUME
+        val v = when {
+            ducked -> BGM_DUCKED
+            speaking -> BGM_UNDER_VOICE
+            else -> BGM_VOLUME
+        }
         bgm?.setVolume(v, v)
     }
 
@@ -125,5 +139,7 @@ class AndroidSoundEffects(context: Context) : SoundEffects {
         const val BGM_VOLUME = 0.30f
         /** 대사를 읽는 동안 */
         const val BGM_UNDER_VOICE = 0.12f
+        /** 내비 안내 중 */
+        const val BGM_DUCKED = 0.04f
     }
 }

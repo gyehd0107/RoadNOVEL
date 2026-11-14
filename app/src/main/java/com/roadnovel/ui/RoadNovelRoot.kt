@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.roadnovel.ui.common.Chip
+import com.roadnovel.ui.common.GoButton
 import com.roadnovel.ui.common.Dot
 import com.roadnovel.ui.common.NightSky
 import com.roadnovel.ui.ending.EndingScreen
@@ -104,6 +105,26 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
             choice?.let { ChoiceOverlay(it, onPick = vm::pickChoice) }
         }
 
+        // 오디오 포커스 때문에 멈췄을 때 알림 (내비 안내·전화·다른 앱)
+        val note = ui.focusNote
+        if (ui.screen == ScreenId.PLAYER && note != null) {
+            Row(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .safeDrawingPadding()
+                    .padding(top = 64.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF2A2214))
+                    .border(1.dp, RN.Gold, RoundedCornerShape(16.dp))
+                    .padding(start = 22.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(note, color = RN.Gold2, fontSize = 18.sp)
+                if (ui.focusLost) GoButton("▶ 이어 듣기", onClick = vm::resumeAfterFocusLoss)
+            }
+        }
+
         // "저장할까요?" 대화상자
         AnimatedVisibility(ui.screen == ScreenId.PLAYER && ui.quitDialog, enter = fadeIn(), exit = fadeOut()) {
             QuitDialog(
@@ -114,7 +135,8 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
         }
 
         // 디버그 패널 (재생 화면 오른쪽 아래)
-        if (ui.screen == ScreenId.PLAYER && !ui.debugHidden) {
+        // 디버그 패널: 디버그 빌드에서만, 그리고 주행 중에는 숨김 (작은 버튼·슬라이더·긴 글이 많음)
+        if (ui.screen == ScreenId.PLAYER && !ui.debugHidden && ui.debugBuild && !ui.drivingRestricted) {
             DebugPanel(
                 open = ui.debugOpen,
                 speedKmh = ui.speedKmh,
@@ -133,6 +155,8 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                 odometerKm = ui.odometerKm,
                 aiStatus = ui.aiStatus,
                 onStartDemo = vm::startDemo,
+                onNavPrompt = vm::simulateNavPrompt,
+                onPreviewRestricted = vm::previewRestricted,
                 onSpeed = vm::setSpeed,
                 onTimeScale = vm::setTimeScale,
                 onEta = vm::setEta,
@@ -166,7 +190,8 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
 
 @Composable
 private fun TopBar(ui: UiState, onLogoLongPress: () -> Unit) {
-    val moving = ui.moving
+    // 시스템이 주행 중이라고 하면(UX 제한) Mock 값과 상관없이 주행 중으로 표시
+    val moving = ui.moving || ui.drivingRestricted
     Row(
         Modifier.fillMaxWidth().padding(start = 30.dp, end = 30.dp, top = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -179,6 +179,15 @@ interface DialogueGenerator {        // LLM
 
 - AudioFocus를 요청하고, `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK`(내비 안내 등)이면 볼륨을 낮추고, `LOSS_TRANSIENT`이면 일시정지했다가 돌아오면 그 줄부터 다시 읽는다.
 - 주행 중 화면: 자막 한 줄, 진행 바, 선택지 버튼(최대 3개)만. 스크롤·텍스트 입력 없음.
+- **구현·확인 (2026-11-14)**
+  - AudioFocus: `audio/AudioFocus.kt` — 재생 시작 때 `AUDIOFOCUS_GAIN`(USAGE_MEDIA, CONTENT_TYPE_SPEECH, `setWillPauseWhenDucked(true)`), 끝낼 때 반납.
+    - DUCK: 배경음 0.04로 + 낭독은 잠깐 멈춤 (Pleos TTS에는 볼륨 API가 없어 "줄이기" 대신 멈춤) → 돌아오면 그 줄부터 다시.
+    - LOSS_TRANSIENT: 모두 멈춤 → GAIN에 그 줄부터 다시. LOSS: 멈춤 + "▶ 이어 듣기" 버튼.
+    - 에뮬레이터: Pleos TTS(caas)가 대사를 읽어도 우리 포커스를 빼앗지 않음 ✔. 디버그 "🧭 내비 안내 끼어들기"(USAGE_ASSISTANCE_NAVIGATION_GUIDANCE, GAIN_TRANSIENT_MAY_DUCK) → AAOS는 우리에게 `LOSS_TRANSIENT`를 보냄 → 47자 대사가 2.3초에서 끊기고, 안내가 끝나면 같은 대사를 처음부터 다시 읽음 ✔.
+  - 주행 중 화면 제한: `data/vehicle/DrivingRestriction.kt` — AAOS `CarUxRestrictionsManager`의 `isRequiresDistractionOptimization` (또는 Pleos 차량이 달리는 중). Pleos Driving Restriction Policy 문서는 자동으로 읽히지 않아 AAOS 표준 + 이 장의 규칙으로 점검.
+    - 주행 중: 디버그 패널 숨김(그리고 디버그 빌드에서만 보임), 이야기 선택은 "출발! (추천 길이)" 하나만, 속도 권한 설명·권한 창은 정차 때까지 미룸. 재생·선택지·저장 대화상자는 그대로(큰 버튼, 스크롤·입력 없음).
+    - 에뮬레이터: Virtual Console 기어 D + `PUT /vehicle/controls?speed_kph=40` → 주행 상태 MOVING, 제한 0x50 → 앱이 주행용 화면으로 바뀜 ✔, 정차하면 원래대로 ✔. (콘솔 화면에 속도 카드는 없지만 이 API로 속도를 바꿀 수 있음)
+    - 디버그 "🚦 주행 중 화면 미리보기"로 PT용 캡처 가능 (끄기: 로고 길게 누르기).
 - 위치 좌표는 저장하지 않는다. 거리(km)만 저장한다(위치정보 관련 위험 최소화).
 
 ## 12. 개발 순서 (마일스톤)

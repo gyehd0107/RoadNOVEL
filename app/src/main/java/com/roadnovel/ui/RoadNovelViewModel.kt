@@ -8,7 +8,9 @@ import com.roadnovel.data.save.EarnedBadge
 import com.roadnovel.data.save.SavedProgress
 import com.roadnovel.data.save.SaveRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
+import com.roadnovel.data.vehicle.DrivingRestriction
 import com.roadnovel.data.vehicle.Gear
+import com.roadnovel.BuildConfig
 import com.roadnovel.data.vehicle.PleosVehicleDataSource
 import com.roadnovel.data.vehicle.effectiveSpeedKmh
 import com.roadnovel.data.vehicle.isMoving
@@ -27,6 +29,9 @@ import com.roadnovel.voice.Narrator
 import com.roadnovel.ai.DialogueGenerator
 import com.roadnovel.ai.ExtraLines
 import com.roadnovel.audio.Sfx
+import com.roadnovel.audio.AudioFocusController
+import com.roadnovel.audio.FocusState
+import com.roadnovel.audio.NavPromptSimulator
 import com.roadnovel.audio.SoundEffects
 import com.roadnovel.ai.StoryContext
 import com.roadnovel.story.StoryLine
@@ -92,6 +97,19 @@ data class UiState(
     val badges: List<EarnedBadge> = emptyList(),
     /** "저장할까요?" 대화상자 */
     val quitDialog: Boolean = false,
+    /** 오디오 포커스 때문에 멈췄을 때 화면에 보일 한 줄 (없으면 null) */
+    val focusNote: String? = null,
+    /** 다른 앱이 소리를 가져가서 멈춤 → "이어 듣기"를 눌러야 다시 */
+    val focusLost: Boolean = false,
+    /**
+     * 주행 중 화면 제한: 시스템(AAOS UX 제한)이 요구하거나, 실제 차량(Pleos)이 달리는 중.
+     * (Mock 슬라이더 주행은 시연용이라 제한하지 않음)
+     */
+    val drivingRestricted: Boolean = false,
+    /** 디버그: 주행 중 화면 미리보기 (로고를 길게 누르면 꺼짐) */
+    val restrictPreview: Boolean = false,
+    /** 디버그 패널은 디버그 빌드에서만 */
+    val debugBuild: Boolean = BuildConfig.DEBUG,
     /** false면 소리 없이 자막만 */
     val soundOn: Boolean = true,
     /** 디버그: 마이크 대신 보낼 수 있는 시험 녹음 이름들 (assets/test_audio 폴더의 .pcm 파일) */
@@ -175,6 +193,9 @@ class RoadNovelViewModel @Inject constructor(
     private val voiceInput: VoiceInput,
     private val dialogue: DialogueGenerator,
     private val sound: SoundEffects,
+    private val focus: AudioFocusController,
+    private val navSim: NavPromptSimulator,
+    private val driving: DrivingRestriction,
     @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -196,6 +217,8 @@ class RoadNovelViewModel @Inject constructor(
     private var latestSave: SavedProgress? = null
     /** "저장할까요?" 대화상자가 떠 있는 동안 이야기를 멈춤 */
     private val paused = MutableStateFlow(false)
+    /** 오디오 포커스를 잃은 동안 이야기를 멈춤 (내비 안내·전화 등) */
+    private val focusHold = MutableStateFlow(false)
 
     // 차량 값 최신본 (VehicleDataSource 흐름에서 받음)
     private var speed: Float? = 0f
@@ -224,6 +247,8 @@ class RoadNovelViewModel @Inject constructor(
         }
         viewModelScope.launch { saves.badges.collect { b -> _ui.update { it.copy(badges = b) } } }
         collectVehicle()
+        viewModelScope.launch { focus.state.collect(::onFocus) }
+        viewModelScope.launch { driving.restricted.collect { updateRestricted() } }
         viewModelScope.launch {
             navi.remainingMinutes.collect { eta ->
                 _ui.update { s ->
@@ -278,6 +303,7 @@ class RoadNovelViewModel @Inject constructor(
             )
         }
         refreshPlayer(e)
+        focus.request()
         sound.startBgm()
         playJob?.cancel()
         playJob = viewModelScope.launch {
@@ -355,7 +381,11 @@ class RoadNovelViewModel @Inject constructor(
 
     fun hideDebug() = _ui.update { it.copy(debugHidden = true, debugOpen = false) }
 
-    fun showDebug() = _ui.update { it.copy(debugHidden = false) }
+    /** 로고 길게 누르기: 디버그 패널 다시 보이기 + 주행 중 화면 미리보기 끄기 */
+    fun showDebug() {
+        _ui.update { it.copy(debugHidden = false, restrictPreview = false) }
+        updateRestricted()
+    }
 
     fun setSpeed(kmh: Float) {
         car.setSpeed(kmh)
@@ -431,6 +461,53 @@ class RoadNovelViewModel @Inject constructor(
     private suspend fun until(timeoutMs: Long, cond: (UiState) -> Boolean): Boolean =
         withTimeoutOrNull(timeoutMs) { _ui.first(cond); true } ?: false
 
+    // ------------------------------------------------------------------
+    // 오디오 포커스 (CLAUDE.md 11장)
+    // ------------------------------------------------------------------
+
+    /**
+     * - DUCK(내비 안내): 배경음은 아주 작게, 낭독은 잠깐 멈춤
+     *   (Pleos TTS에는 볼륨 API가 없어 줄일 수 없음 → 안내가 잘 들리도록 멈췄다가 그 줄부터 다시)
+     * - PAUSE(전화 등): 모두 멈춤 → 돌아오면 그 줄부터 다시
+     * - LOST(다른 미디어 앱): 모두 멈춤 → "이어 듣기"를 누르면 다시
+     */
+    private fun onFocus(st: FocusState) {
+        if (engine == null) return
+        when (st) {
+            FocusState.GAINED -> {
+                focusHold.value = false
+                sound.setDucked(false)
+                if (!_ui.value.quitDialog) sound.startBgm()
+                _ui.update { it.copy(focusNote = null, focusLost = false) }
+            }
+            FocusState.DUCK -> {
+                focusHold.value = true
+                narrator.stop()
+                sound.setDucked(true)
+                _ui.update { it.copy(focusNote = "🧭 내비 안내 중 — 이야기를 잠깐 멈췄어요") }
+            }
+            FocusState.PAUSE -> {
+                focusHold.value = true
+                narrator.stop()
+                sound.pauseBgm()
+                _ui.update { it.copy(focusNote = "잠깐 멈췄어요 — 끝나면 이어서 들려줄게요") }
+            }
+            FocusState.LOST -> {
+                focusHold.value = true
+                narrator.stop()
+                sound.pauseBgm()
+                _ui.update { it.copy(focusNote = "다른 앱의 소리가 나와서 이야기를 멈췄어요", focusLost = true) }
+            }
+            FocusState.NONE -> Unit
+        }
+    }
+
+    /** 다른 앱 때문에 멈춘 뒤 "▶ 이어 듣기" */
+    fun resumeAfterFocusLoss() = focus.request()
+
+    /** 디버그: 내비 안내가 끼어드는 상황 (진짜 내비 안내 용도로 오디오 포커스를 잡음) */
+    fun simulateNavPrompt() = navSim.play()
+
     /** 디버그: 차량 데이터 출처 [Mock(슬라이더) / Pleos 차량] */
     fun setVehicleSource(src: VehicleSource) {
         if (src == VehicleSource.PLEOS) pleosVehicle.start()
@@ -476,6 +553,19 @@ class RoadNovelViewModel @Inject constructor(
         _ui.update {
             it.copy(liveSpeedKmh = speed, gear = gear, odometerKm = odometer, moving = isMoving(speed, gear))
         }
+        updateRestricted()
+    }
+
+    /** 주행 중 화면 제한 다시 계산 */
+    private fun updateRestricted() = _ui.update {
+        val realCarMoving = source.value == VehicleSource.PLEOS && isMoving(speed, gear)
+        it.copy(drivingRestricted = driving.restricted.value || realCarMoving || it.restrictPreview)
+    }
+
+    /** 디버그: 주행 중 화면 미리보기 켜기 (패널이 숨겨짐 → 로고를 길게 누르면 꺼짐) */
+    fun previewRestricted() {
+        _ui.update { it.copy(restrictPreview = true) }
+        updateRestricted()
     }
 
     // ------------------------------------------------------------------
@@ -498,6 +588,7 @@ class RoadNovelViewModel @Inject constructor(
         var savedSceneId: String? = null
         while (true) {
             paused.first { !it }
+            focusHold.first { !it }
             // 장면이 바뀔 때마다 자동 임시 저장 (앱이 갑자기 꺼져도 복구)
             val st = e.state
             if (st.phase != Phase.ENDED && st.sceneId != savedSceneId) {
@@ -516,8 +607,8 @@ class RoadNovelViewModel @Inject constructor(
                     sound.setSpeaking(true)
                     activeNarrator.speak(a.line.text, voiceOf(e, a.line.who))
                     sound.setSpeaking(false)
-                    // 읽는 도중 "그만하기"로 멈췄으면 이 줄은 끝난 게 아님 → 나중에 다시 읽음
-                    if (!paused.value) e.lineDone()
+                    // 읽는 도중 "그만하기"나 내비 안내로 멈췄으면 이 줄은 끝난 게 아님 → 그 줄부터 다시 읽음
+                    if (!paused.value && !focusHold.value) e.lineDone()
                 }
                 // TODO(M6): Pleos LLM으로 추가 대사 생성. 지금은 건너뜀
                 is EngineAction.RequestAiLines -> awaitAi(e, a).let { e.supplyAiLines(it.lines, it.byModel) }
@@ -657,6 +748,9 @@ class RoadNovelViewModel @Inject constructor(
 
     private fun stopPlaying() {
         narrator.stop()
+        focus.abandon()
+        focusHold.value = false
+        _ui.update { it.copy(focusNote = null, focusLost = false) }
         if (_ui.value.screen != ScreenId.ENDING) sound.stopBgm()
         aiPrefetch.values.forEach { it.cancel() }
         aiPrefetch.clear()

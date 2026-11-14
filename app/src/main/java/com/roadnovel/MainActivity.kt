@@ -11,7 +11,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
+import com.roadnovel.data.vehicle.DrivingRestriction
 import com.roadnovel.ui.RoadNovelRoot
+import javax.inject.Inject
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.roadnovel.ui.SpeedPermissionNotice
 import com.roadnovel.ui.theme.RoadNovelTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -19,6 +24,8 @@ import dagger.hilt.android.AndroidEntryPoint
 /** 화면 하나짜리 액티비티. 모든 화면은 Compose로 그린다. */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var driving: DrivingRestriction
 
     /** 차량 속도 권한을 묻기 전 설명 화면을 보여 줄지 */
     private var showSpeedNotice by mutableStateOf(false)
@@ -51,6 +58,14 @@ class MainActivity : ComponentActivity() {
      * 거부해도 앱은 동작한다 (버튼으로 선택, 기어로만 정차 판단).
      */
     private fun askPermissions() {
+        // 주행 중에는 설명 화면·권한 창을 띄우지 않고, 차가 멈췄을 때 묻는다
+        if (driving.restricted.value) {
+            lifecycleScope.launch {
+                driving.restricted.first { !it }
+                askPermissions()
+            }
+            return
+        }
         val missing = missing()
         when {
             missing.isEmpty() -> Unit

@@ -53,6 +53,11 @@ fun SelectScreen(
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 주행 중: 고르는 단계 없이 "추천대로 출발" 하나만 (장르·길이 선택은 정차했을 때)
+    if (ui.drivingRestricted) {
+        DrivingStart(ui, onBack, onStart, modifier)
+        return
+    }
     val cards = ui.stories.map {
         GenreCard(GENRE_LABEL[it.genre] ?: it.genre, "${it.title} · 가족 함께", it.id)
     } + listOf(
@@ -116,6 +121,24 @@ fun SelectScreen(
             NaviHint(ui)
             Spacer(Modifier.weight(1f))
             GoButton("출발! 이야기 시작", onClick = onStart)
+        }
+    }
+}
+
+/** 주행 중 이야기 시작 화면: 큰 버튼 하나 + 처음으로 */
+@Composable
+private fun DrivingStart(ui: UiState, onBack: () -> Unit, onStart: () -> Unit, modifier: Modifier = Modifier) {
+    val title = ui.selectedStory?.title ?: "이야기"
+    Column(
+        modifier.fillMaxSize().padding(40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically),
+    ) {
+        Text("🚗 주행 중에는 추천 길이로 바로 시작해요", style = MaterialTheme.typography.headlineMedium)
+        Text("장르와 길이는 차가 멈췄을 때 고를 수 있어요", style = MaterialTheme.typography.bodyLarge, color = RN.Sub)
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            SubButton("← 처음으로", onClick = onBack)
+            GoButton("출발! $title · ${ui.lengthMin}분", onClick = onStart)
         }
     }
 }
