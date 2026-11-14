@@ -191,6 +191,8 @@ class RoadNovelViewModel @Inject constructor(
     private var choiceAnswer: CompletableDeferred<Int>? = null
     /** 장면에 들어갈 때 미리 만들어 두는 AI 대사 (장면 id → 생성 작업) */
     private val aiPrefetch = mutableMapOf<String, Deferred<ExtraLines>>()
+    /** 방금 선택 효과음을 냈으면 바로 이어지는 장면 차임은 생략 (두 소리가 겹치지 않게) */
+    private var skipNextSceneChime = false
     private var latestSave: SavedProgress? = null
     /** "저장할까요?" 대화상자가 떠 있는 동안 이야기를 멈춤 */
     private val paused = MutableStateFlow(false)
@@ -502,7 +504,7 @@ class RoadNovelViewModel @Inject constructor(
                 saves.save(st, isTemp = true)
                 savedSceneId = st.sceneId
                 prefetchAi(e)
-                sound.play(Sfx.SCENE)
+                if (skipNextSceneChime) skipNextSceneChime = false else sound.play(Sfx.SCENE)
             }
             when (val a = e.nextAction()) {
                 is EngineAction.Speak -> {
@@ -596,6 +598,7 @@ class RoadNovelViewModel @Inject constructor(
         when (result) {
             is ChoiceResult.Picked -> {
                 sound.play(Sfx.PICK)
+                skipNextSceneChime = true
                 val how = if (result.method == com.roadnovel.story.ChoiceMethod.DEFAULT) " (대답이 없어서 기본 선택)" else ""
                 showToast("🗺️ 탐험대의 선택: ${result.option.label}$how")
             }
