@@ -42,7 +42,15 @@ android {
     }
 
     buildTypes {
+        // 앱이 처음 켜질 때의 차량 데이터 출처
+        //  - 디버그: MOCK (디버그 패널로 조작하는 가상 차량)
+        //  - 릴리스: PLEOS (실제 차량. 쓸 수 없으면 자동으로 MOCK으로 돌아감)
+        // 시험할 때는 -Proadnovel.defaultVehicle=PLEOS 로 디버그 빌드의 기본값을 바꿀 수 있다
+        debug {
+            buildConfigField("String", "DEFAULT_VEHICLE_SOURCE", "\"${(project.findProperty("roadnovel.defaultVehicle") as String?) ?: "MOCK"}\"")
+        }
         release {
+            buildConfigField("String", "DEFAULT_VEHICLE_SOURCE", "\"PLEOS\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

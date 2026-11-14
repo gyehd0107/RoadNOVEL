@@ -254,6 +254,10 @@ class RoadNovelViewModel @Inject constructor(
         }
         viewModelScope.launch { saves.badges.collect { b -> _ui.update { it.copy(badges = b) } } }
         collectVehicle()
+        // 빌드 종류별 기본 차량 출처 (릴리스는 Pleos 차량, 디버그는 Mock)
+        if (VehicleSource.entries.firstOrNull { it.name == BuildConfig.DEFAULT_VEHICLE_SOURCE } == VehicleSource.PLEOS) {
+            setVehicleSource(VehicleSource.PLEOS)
+        }
         viewModelScope.launch { focus.state.collect(::onFocus) }
         viewModelScope.launch { driving.restricted.collect { updateRestricted() } }
         viewModelScope.launch {
