@@ -44,10 +44,17 @@
 - **Vehicle SDK에는 속도 항목이 없다.** 속도·정차 판단은 AAOS 표준 `CarPropertyManager` + `VehiclePropertyIds.PERF_VEHICLE_SPEED`(또는 NaviHelper 주행 정보 이벤트)로 한다.
 - 이동 거리: 1순위 Vehicle SDK **Odometer**, 2순위 AAOS `PERF_ODOMETER`, 3순위 FusedLocation 위치 변화 누적.
 - 남은 시간: NaviHelper(내비 연동) — 내비가 있는 차량에서만 완전 지원.
-- **에뮬레이터에서 직접 확인한 사실 (Pleos_Connect_v2.1.0, API 34, 2026-11-14)**
-  - Android 기본 `TextToSpeech`: 등록된 TTS 엔진이 없음 (`onInit` = -1). `TTS_SERVICE`를 받는 `ai.pleos.playground.caas`(Pleos SpeechService)를 직접 지정해도 -1 → **소리를 내려면 Pleos TextToSpeech SDK가 필요**. 그 전까지는 자막만 모드로 자동 전환.
-  - Android 기본 `SpeechRecognizer`: `ai.umos.ambientai`로 연결되고 마이크도 켜지지만, 모델 파일 오류로 결과가 오지 않음 → 시간 초과 처리됨. **Pleos SpeechToText SDK가 필요**.
-  - document.pleos.ai 는 자바스크립트로 그려져 자동으로 읽히지 않음 → 사람이 문서 내용을 붙여 줘야 Pleos SDK 코드를 쓸 수 있다.
+- **Pleos 음성 SDK 3.3.1 — 정리: `docs/Pleos_음성SDK_정리.md`, 아래는 SDK jar(javap)와 에뮬레이터(Pleos_Connect_v2.1.0, API 34)에서 직접 확인 (2026-11-14)**
+  - 의존성: `ai.pleos.playground:TextToSpeech:3.3.1`, `ai.pleos.playground:SpeechToText:3.3.1`. 권한 `pleos.car.permission.TTS_SERVICE` / `STT_SERVICE` (설치 시 자동 허용됨).
+  - 실제 import 위치: `ai.pleos.playground.tts.listener.{EventListener, OnInitializeListener, OnServerConnectionListener}`, `ai.pleos.playground.stt.listener.{ResultListener, OnInitializeListener, OnServerConnectionListener}`. Mode·ErrorType은 tts/stt 패키지에 각각 따로 있음.
+  - **목소리 높이·속도 API 없음** → 모든 인물이 같은 목소리, 화면의 얼굴·이름으로 구분. (`setSpeakerType(String)`은 있으나 값이 문서에 없어 사용 안 함)
+  - 모드는 기본 `ON_DEVICE`(앱 등록 불필요). `local.properties`의 `pleos.mode=HYBRID` + `pleos.clientId` / `pleos.clientSecret`이 있으면 `registerApp` (코드 준비됨, 미시험).
+  - TTS(ON_DEVICE): `initialize` 성공 → `speak(text, true)` → `onDone` 정상 동작. 대사 길이에 비례해 약 4~7초. `onError`/응답 없음이면 그 줄은 자막만 보여 주고 넘어감.
+  - STT(ON_DEVICE): `sendAudio(16kHz·16bit·mono PCM)` + `completeAudioSend()`로 인식 성공 ("오래된 성" → "오래된 성"). **숫자는 한글로 나올 수 있음** ("2번" → "두 번") → StoryEngine이 한글 수사를 숫자로 바꿔 비교.
+  - `request()`(실제 마이크): `ReadyToStartRecognition`까지는 오지만 에뮬레이터의 호스트 마이크 입력이 꺼져 있으면 인식이 시작되지 않고 시간 초과 → 버튼/기본값.
+  - Android 기본 `TextToSpeech`/`SpeechRecognizer`는 이 에뮬레이터에서 동작하지 않음 (TTS 엔진 없음, 인식 모델 파일 오류) → `VOICE_ENGINE`은 `"pleos"`가 기본.
+  - 에뮬레이터 AVD: `fastboot.forceColdBoot=yes`(항상 cold boot), `hw.audioInput=yes`. 호스트 마이크는 실행 중 Extended Controls → Microphone에서 켜야 함 (설정 파일에 저장 안 됨).
+  - 시연용: 디버그 빌드의 디버그 패널에서 선택지가 떠 있을 때 🎤 "오래된 성" / 🎤 "2번" 버튼 → 시험 녹음(`app/src/debug/assets/test_audio`)을 `sendAudio`로 보냄.
 
 ## 5. 폴더 구조 (목표)
 
@@ -126,7 +133,7 @@ interface DialogueGenerator {        // LLM
    - **선택지 장면은 예외**: 대사가 끝나면 거리를 기다리지 않고 바로 질문한다. 그 장면에서 못 채운 거리는 다음 장면으로 넘긴다 (다음 장면 필요 거리 = 넘어온 거리 + 다음 장면 거리). 그래서 전체 길이는 그대로 맞는다. (결말 장면은 자기 거리는 안 기다리지만, 넘어온 거리는 채운 뒤 끝난다.)
 4. 대사는 끝났는데 거리가 부족하면: AI 추가 대사 → 그래도 남으면 배경음만 재생하며 기다린다.
 5. **정차 처리**: 정차 상태가 되면 아직 안 쓴 interlude를 하나 재생한다. 단, 이번 주행(앱을 켠 뒤)에 아직 출발하지 않았으면 무시한다 (출발 전·이어 듣기 직후 주차 중).
-6. **막힘 방지**: 기다린 시간이 `(weight × L / 전체weight) × 1.5분`을 넘으면 거리와 상관없이 다음 장면으로 간다 (꽉 막힌 길에서도 이야기가 멈추지 않게).
+6. **막힘 방지**: 기다린 시간이 `(weight × L / 전체weight) × 1.5분`을 넘으면 거리와 상관없이 다음 장면으로 간다 (꽉 막힌 길에서도 이야기가 멈추지 않게). 단, 기다린 시간은 이번 주행에서 차가 한 번이라도 움직인 뒤부터 센다 (출발 전 주차 중에는 넘어가지 않음).
 7. **선택지**: 질문을 TTS로 읽고 → `listen(timeoutSec)` → `say` 키워드가 들어 있는지 확인 → 실패하면 한 번 더 묻고 → 그래도 실패하면 `defaultIndex`. 화면의 큰 버튼(동승자용)으로도 고를 수 있다.
 8. **상태**(`StoryState`): storyId, lengthMin, sceneId, lineIndex, flags, items, choices 기록, 누적 거리, 경과 시간, endingId.
 

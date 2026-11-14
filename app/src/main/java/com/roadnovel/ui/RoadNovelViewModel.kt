@@ -21,6 +21,10 @@ import com.roadnovel.story.VoiceStyle
 import com.roadnovel.voice.Narrator
 import com.roadnovel.voice.SubtitleNarrator
 import com.roadnovel.voice.VoiceInput
+import com.roadnovel.voice.TestAudioInput
+import android.content.Context
+import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.selects.select
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,6 +70,8 @@ data class UiState(
     val quitDialog: Boolean = false,
     /** false면 소리 없이 자막만 */
     val soundOn: Boolean = true,
+    /** 디버그: 마이크 대신 보낼 수 있는 시험 녹음 이름들 (assets/test_audio 폴더의 .pcm 파일) */
+    val testAudios: List<String> = emptyList(),
     val loadError: String? = null,
 ) {
     val recommendedMin: Int? get() = etaMin?.let(::recommendLength)
@@ -141,6 +147,7 @@ class RoadNovelViewModel @Inject constructor(
     private val saves: SaveRepository,
     private val narrator: Narrator,
     private val voiceInput: VoiceInput,
+    @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     /** "자막만" 모드일 때 쓰는 조용한 낭독기 */
@@ -164,6 +171,11 @@ class RoadNovelViewModel @Inject constructor(
 
     init {
         car.timeScale = _ui.value.timeScale.toDouble()
+        // 시험 녹음은 디버그 빌드에만 들어 있다 (app/src/debug/assets/test_audio)
+        if (voiceInput is TestAudioInput) {
+            val names = runCatching { appContext.assets.list(TEST_AUDIO_DIR).orEmpty().filter { it.endsWith(".pcm") } }.getOrDefault(emptyList())
+            _ui.update { it.copy(testAudios = names.map { it.removeSuffix(".pcm") }) }
+        }
         viewModelScope.launch {
             runCatching { repository.listStories() }
                 .onSuccess { list -> _ui.update { it.copy(stories = list, selectedStoryId = list.firstOrNull()?.id) } }
@@ -269,6 +281,17 @@ class RoadNovelViewModel @Inject constructor(
     /** 디버그: 앱을 진짜로 강제 종료 (임시 저장 복구 시연용) */
     fun forceKill() {
         android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    /** 디버그: 마이크 대신 시험 녹음을 보낸다 (선택지에서 음성 대답 시험) */
+    fun sendTestAudio(name: String) {
+        val input = voiceInput as? TestAudioInput ?: return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { appContext.assets.open("$TEST_AUDIO_DIR/$name.pcm").use { it.readBytes() } }
+                .onSuccess { input.sendTestAudio(it) }
+                .onFailure { Log.w("RoadNovelViewModel", "시험 녹음 읽기 실패: $name", it) }
+        }
+        showToast("🎤 시험 녹음 보냄: ${TEST_AUDIO_LABELS[name] ?: name}")
     }
 
     /** 🔊 소리 켜짐 ↔ 🔇 자막만 */
@@ -542,5 +565,8 @@ class RoadNovelViewModel @Inject constructor(
         const val TICK_MS = 100L
         const val WAIT_POLL_MS = 150L
         const val TOAST_MS = 3000L
+        const val TEST_AUDIO_DIR = "test_audio"
+        /** 시험 녹음 파일 이름 → 화면에 보일 말 */
+        val TEST_AUDIO_LABELS = mapOf("old_castle" to "오래된 성", "two" to "2번")
     }
 }

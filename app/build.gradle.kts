@@ -1,3 +1,11 @@
+import java.util.Properties
+
+// local.properties (커밋 안 됨)에서 비밀값·개인 설정 읽기
+val localProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+fun localProp(key: String, default: String = ""): String = localProps.getProperty(key, default).trim()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,7 +26,13 @@ android {
         versionName = "0.1.0"
 
         // 음성 엔진: "android"(기본 TTS/STT) / "pleos"(Pleos SDK) / "mock"(자막만·버튼만)
-        buildConfigField("String", "VOICE_ENGINE", "\"android\"")
+        buildConfigField("String", "VOICE_ENGINE", "\"pleos\"")
+
+        // Pleos 음성 모드: ON_DEVICE(앱 등록 불필요) / HYBRID(서버 우선, Client ID/Secret 필요)
+        // local.properties 예:  pleos.mode=HYBRID   pleos.clientId=...   pleos.clientSecret=...
+        buildConfigField("String", "PLEOS_MODE", "\"${localProp("pleos.mode", "ON_DEVICE")}\"")
+        buildConfigField("String", "PLEOS_CLIENT_ID", "\"${localProp("pleos.clientId")}\"")
+        buildConfigField("String", "PLEOS_CLIENT_SECRET", "\"${localProp("pleos.clientSecret")}\"")
     }
 
     buildTypes {
@@ -66,6 +80,10 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    // Pleos 음성 SDK (docs/Pleos_음성SDK_정리.md)
+    implementation(libs.pleos.tts)
+    implementation(libs.pleos.stt)
 
     testImplementation(libs.junit)
 }

@@ -41,6 +41,9 @@ fun DebugPanel(
     onToggle: () -> Unit,
     onHide: () -> Unit,
     onForceKill: () -> Unit,
+    /** 선택지가 떠 있을 때만 보이는 시험 녹음 버튼들 (이름 → 보일 말) */
+    testAudios: List<Pair<String, String>> = emptyList(),
+    onTestAudio: (String) -> Unit = {},
     onSpeed: (Float) -> Unit,
     onTimeScale: (Int) -> Unit,
     onEta: (Int) -> Unit,
@@ -98,6 +101,14 @@ fun DebugPanel(
                     valueRange = 5f..90f,
                     colors = SliderDefaults.colors(thumbColor = RN.Teal, activeTrackColor = RN.Teal),
                 )
+                if (testAudios.isNotEmpty()) {
+                    LabelRow("음성 대답 시험 (마이크 대신)", "")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        testAudios.forEach { (name, label) ->
+                            Seg("🎤 \"$label\"", false, Modifier.weight(1f)) { onTestAudio(name) }
+                        }
+                    }
+                }
                 // 임시 저장 복구 시연: 앱을 진짜로 죽인다 → 다시 켜면 홈에 "갑자기 멈췄어요" 카드
                 Seg("⚡ 앱 강제 종료 (임시 저장 복구 시연)", false, Modifier.fillMaxWidth(), danger = true, onClick = onForceKill)
                 if (stats != null) {

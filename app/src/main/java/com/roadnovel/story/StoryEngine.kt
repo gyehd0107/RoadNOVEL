@@ -191,7 +191,8 @@ class StoryEngine(
         s = s.copy(
             totalKm = total,
             elapsedSec = elapsed,
-            waitSec = if (s.phase == Phase.WAITING) s.waitSec + dtSec else s.waitSec,
+            // 막힘 방지 시간은 이번 주행에서 차가 한 번이라도 움직인 뒤에만 센다 (주차 중엔 이야기가 넘어가지 않게)
+            waitSec = if (s.phase == Phase.WAITING && sessionKm > 0.0) s.waitSec + dtSec else s.waitSec,
             avgKmPerMin = updateAverage(elapsed, total),
         )
         updateStop(dtSec, speedKmh)
@@ -309,16 +310,23 @@ class StoryEngine(
     private fun matchOption(choice: Choice, heard: String?): Int? {
         if (heard.isNullOrBlank()) return null
         val said = heard.normalize()
+        // 음성 인식은 "2번"을 "두 번"으로 적기도 한다 → 숫자로 바꾼 문장도 함께 비교
+        val saidDigits = said.koreanCountToDigits()
         // 들어 있는 키워드 중 가장 긴 것을 고른다 ("버섯 마을" > "마을")
         return choice.options.withIndex()
             .mapNotNull { (i, o) ->
-                o.say.map { it.normalize() }.filter { it.isNotEmpty() && it in said }.maxOfOrNull { it.length }?.let { i to it }
+                o.say.map { it.normalize() }
+                    .filter { it.isNotEmpty() && (it in said || it in saidDigits) }
+                    .maxOfOrNull { it.length }?.let { i to it }
             }
             .maxByOrNull { it.second }
             ?.first
     }
 
     private fun String.normalize() = lowercase().filterNot { it.isWhitespace() }
+
+    /** "한번/두번/세번", "일번/삼번", "첫째/둘째/셋째" → "1번/2번/3번" (공백은 이미 지운 상태) */
+    private fun String.koreanCountToDigits(): String = COUNT_WORDS.entries.fold(this) { acc, (word, digit) -> acc.replace(word, digit) }
 
     private fun distanceDelta(dtSec: Double, speedKmh: Float?, odometerKm: Double?): Double {
         val bySpeed = (speedKmh ?: 0f).coerceAtLeast(0f) / 3600.0 * dtSec
@@ -380,5 +388,13 @@ class StoryEngine(
         const val MAX_KM_PER_MIN = 2.5   // 150km/h
         const val MAX_SPEED_KMH = 250.0
         private const val MIN_WEIGHT = 1e-6
+
+        // "이번"(=this time)은 일부러 넣지 않음
+        private val COUNT_WORDS = linkedMapOf(
+            "한번" to "1번", "두번" to "2번", "세번" to "3번", "네번" to "4번",
+            "일번" to "1번", "삼번" to "3번", "사번" to "4번",
+            "첫째" to "1번", "둘째" to "2번", "셋째" to "3번", "넷째" to "4번",
+            "하나" to "1번", "둘" to "2번", "셋" to "3번",
+        )
     }
 }

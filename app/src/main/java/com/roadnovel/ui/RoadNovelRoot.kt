@@ -124,6 +124,8 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                 onToggle = vm::toggleDebug,
                 onHide = vm::hideDebug,
                 onForceKill = vm::forceKill,
+                testAudios = if (ui.player?.choice != null) ui.testAudios.map { it to (RoadNovelViewModel.TEST_AUDIO_LABELS[it] ?: it) } else emptyList(),
+                onTestAudio = vm::sendTestAudio,
                 onSpeed = vm::setSpeed,
                 onTimeScale = vm::setTimeScale,
                 onEta = vm::setEta,

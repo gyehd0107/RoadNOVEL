@@ -188,6 +188,26 @@ class StoryEngineTest {
         assertTrue("거리는 여전히 부족했어야 함", e.state.totalKm < 0.2)
     }
 
+    @Test
+    fun `출발 전 주차 중에는 막힘 방지로 넘어가지 않는다`() {
+        val d = drive(20, speed = 0f)
+        val e = d.engine
+        readAllLinesInstantly(e)
+        e.nextAction()
+        e.supplyAiLines(emptyList())
+
+        d.run(e.stallLimitSec() * 3) // 한참 주차
+        assertTrue(e.nextAction() is EngineAction.Wait)
+        assertEquals("s1_departure", e.state.sceneId)
+
+        // 출발해서 아주 느리게 가면 그때부터 시간을 센다 (주차 시간은 안 셈)
+        d.speed(1f).run(e.stallLimitSec() - 10)
+        assertTrue(e.nextAction() is EngineAction.Wait)
+        d.run(11.0)
+        e.nextAction()
+        assertEquals("s2_forest_gate", e.state.sceneId)
+    }
+
     // ------------------------------------------------------------------
     // 5) 선택지 키워드 인식과 시간 초과 시 기본값
     // ------------------------------------------------------------------
@@ -229,6 +249,10 @@ class StoryEngineTest {
             "두 번째요" to 1,
             "버섯 마을 갈래" to 1,
             "2번" to 1,
+            // 음성 인식이 숫자를 한글로 적는 경우 (에뮬레이터 Pleos STT에서 실제로 "2번" → "두 번")
+            "두 번" to 1,
+            "한 번이요" to 0,
+            "둘째" to 1,
         )
         cases.forEach { (heard, expected) ->
             val r = atFirstChoice().answerChoice(heard)
