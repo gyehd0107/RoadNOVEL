@@ -53,6 +53,17 @@ class StoryEngine(
     ).let { enterScene(it) }
 
     val state: StoryState get() = s
+
+    /**
+     * 평균 속도를 주행하면서 보정할지. 속도 값 없이 주행거리계(1km 단위)만 있을 때는 끈다
+     * — 1km씩 뛰는 값으로는 평균이 터무니없이 커져 목표 거리가 늘어나기 때문.
+     */
+    var learnAverageSpeed: Boolean = true
+
+    /** 차량 데이터 출처가 바뀌면(Mock ↔ Pleos) 주행거리계 기준점을 다시 잡는다 */
+    fun resetOdometerBaseline() {
+        lastOdometer = null
+    }
     val currentScene: Scene get() = story.scene(s.sceneId)
 
     // ---- 저장하지 않는 순간 상태 ----
@@ -193,7 +204,7 @@ class StoryEngine(
             elapsedSec = elapsed,
             // 막힘 방지 시간은 이번 주행에서 차가 한 번이라도 움직인 뒤에만 센다 (주차 중엔 이야기가 넘어가지 않게)
             waitSec = if (s.phase == Phase.WAITING && sessionKm > 0.0) s.waitSec + dtSec else s.waitSec,
-            avgKmPerMin = updateAverage(elapsed, total),
+            avgKmPerMin = if (learnAverageSpeed) updateAverage(elapsed, total) else s.avgKmPerMin,
         )
         updateStop(dtSec, speedKmh)
     }
@@ -334,9 +345,9 @@ class StoryEngine(
         lastOdometer = odometerKm ?: prev
         if (odometerKm == null || prev == null) return bySpeed
         val d = odometerKm - prev
-        // 주행거리계 값이 거꾸로 가거나 갑자기 튀면 속도로 계산
-        val maxPossible = MAX_SPEED_KMH / 3600.0 * dtSec + 0.05
-        return if (d in 0.0..maxPossible) d else bySpeed
+        // 주행거리계는 1km 단위로 한꺼번에 오르기도 한다 (실차·Virtual Console).
+        // 거꾸로 가거나 말이 안 되게 크게 튀면(출처 전환 등) 속도로 계산
+        return if (d in 0.0..MAX_ODOMETER_JUMP_KM) d else bySpeed
     }
 
     /** 최근 5분 평균 속도로 보정 (규칙 2) */
@@ -386,7 +397,7 @@ class StoryEngine(
         const val AVG_MIN_SPAN_SEC = 60.0
         const val MIN_KM_PER_MIN = 0.1   // 6km/h
         const val MAX_KM_PER_MIN = 2.5   // 150km/h
-        const val MAX_SPEED_KMH = 250.0
+        const val MAX_ODOMETER_JUMP_KM = 50.0
         private const val MIN_WEIGHT = 1e-6
 
         // "이번"(=this time)은 일부러 넣지 않음

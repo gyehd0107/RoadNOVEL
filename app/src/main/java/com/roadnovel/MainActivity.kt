@@ -25,9 +25,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** 음성으로 선택지에 대답하려면 마이크 권한 필요. 거부해도 버튼으로 고를 수 있다 */
+    /**
+     * 실행 중 허용이 필요한 권한: 마이크(음성 대답), 차량 속도.
+     * 거부해도 앱은 동작한다 (버튼으로 선택, 기어로만 정차 판단).
+     */
     private fun askMicPermission() {
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) return
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }.launch(Manifest.permission.RECORD_AUDIO)
+        val needed = arrayOf(Manifest.permission.RECORD_AUDIO, CAR_SPEED)
+            .filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isEmpty()) return
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }.launch(needed.toTypedArray())
+    }
+
+    private companion object {
+        const val CAR_SPEED = "android.car.permission.CAR_SPEED"
     }
 }

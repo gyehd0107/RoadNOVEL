@@ -86,7 +86,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                         ScreenId.PLAYER -> ui.player?.let {
                             PlayerScreen(
                                 it,
-                                moving = ui.speedKmh >= 0.5f,
+                                moving = ui.moving,
                                 soundOn = ui.soundOn,
                                 onToggleSound = vm::toggleSound,
                                 onQuit = vm::quitStory,
@@ -126,6 +126,11 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                 onForceKill = vm::forceKill,
                 testAudios = if (ui.player?.choice != null) ui.testAudios.map { it to (RoadNovelViewModel.TEST_AUDIO_LABELS[it] ?: it) } else emptyList(),
                 onTestAudio = vm::sendTestAudio,
+                vehicleSource = ui.vehicleSource,
+                onVehicleSource = vm::setVehicleSource,
+                pleosStatus = ui.pleosStatus,
+                gear = ui.gear?.label,
+                odometerKm = ui.odometerKm,
                 onSpeed = vm::setSpeed,
                 onTimeScale = vm::setTimeScale,
                 onEta = vm::setEta,
@@ -159,7 +164,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
 
 @Composable
 private fun TopBar(ui: UiState, onLogoLongPress: () -> Unit) {
-    val moving = ui.speedKmh >= 0.5f
+    val moving = ui.moving
     Row(
         Modifier.fillMaxWidth().padding(start = 30.dp, end = 30.dp, top = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -179,7 +184,9 @@ private fun TopBar(ui: UiState, onLogoLongPress: () -> Unit) {
         Spacer(Modifier.weight(1f))
         Chip {
             Dot(if (moving) RN.Teal else RN.Rose)
-            Text(if (moving) "주행 중 ${ui.speedKmh.toInt()}km/h" else "정차 중", color = RN.Sub, fontSize = 15.sp)
+            val gearText = ui.gear?.let { " (${it.label})" }.orEmpty()
+            val speedText = ui.liveSpeedKmh?.let { " ${it.toInt()}km/h" }.orEmpty()
+            Text(if (moving) "주행 중$speedText$gearText" else "정차 중$gearText", color = RN.Sub, fontSize = 15.sp)
         }
         Chip {
             Text("🧭 도착까지", color = RN.Sub, fontSize = 15.sp)

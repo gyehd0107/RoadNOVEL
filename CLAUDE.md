@@ -43,6 +43,20 @@
 - Vehicle SDK는 기능 그룹(Brake, Odometer, TurnSignal 등)을 `vehicle.getXXX()`로 얻어 쓴다. 차종마다 지원이 다르므로 `checkXXXCapabilities` 계열 API로 먼저 지원 여부를 확인한다.
 - **Vehicle SDK에는 속도 항목이 없다.** 속도·정차 판단은 AAOS 표준 `CarPropertyManager` + `VehiclePropertyIds.PERF_VEHICLE_SPEED`(또는 NaviHelper 주행 정보 이벤트)로 한다.
 - 이동 거리: 1순위 Vehicle SDK **Odometer**, 2순위 AAOS `PERF_ODOMETER`, 3순위 FusedLocation 위치 변화 누적.
+- **차량 데이터 — Vehicle SDK 2.0.3 jar(javap)와 에뮬레이터에서 직접 확인 (2026-11-14)** · 구현: `data/vehicle/PleosVehicleDataSource.kt`
+  - 의존성 `ai.pleos.playground:Vehicle:2.0.3`. 권한 `pleos.car.permission.CAR_DRIVE`(주행거리·기어, SDK 어노테이션에 적힌 값), `VEHICLE_BINDING`은 SDK가 자동 추가.
+  - 주행거리: `vehicle.getOdometer().getCurrentDistanceDriven(onOk, onFail)` + `registerDistanceDriven(DistanceDrivenListener)` → `onDistanceDrivenUpdated(Float?)` (km). ✔ 동작.
+  - 기어: Pleos `getGear()`는 **deprecated ("use the Google GEAR_SELECTION property")** → AAOS `GEAR_SELECTION`(권한 `CAR_POWERTRAIN`)을 먼저 쓰고 Pleos는 예비. ✔ 콘솔 P↔D가 바로 반영됨.
+  - 속도: Vehicle SDK에 `VehicleSpeedListener` 클래스는 있으나 등록하는 공개 API가 없음 → AAOS `PERF_VEHICLE_SPEED`(권한 `CAR_SPEED`, 실행 중 허용. AAOS에서는 "위치 정보" 권한 창으로 보임). 지원은 되지만 콘솔에 속도 카드가 없어 계속 0 → **0이 아닌 값이 한 번이라도 와야 속도를 믿고**, 그 전에는 기어로 판단.
+  - capability: Vehicle SDK의 `CapabilityType`은 SUNROOF/AMBIENT_LIGHT 뿐 → 주행거리·기어는 "첫 읽기가 성공하면 지원"으로 판단. 둘 다 실패하면 자동으로 Mock.
+  - 판단 규칙 (`effectiveSpeedKmh`): 기어 P → 정차(속도 0) / 속도 값이 있으면 속도 / 기어 D·R + 속도 모름 → 주행(정차 아님).
+  - 주행거리계는 1km씩 한꺼번에 오른다 → 엔진은 0~50km 점프를 거리로 인정. 속도 없이 주행거리계만 있으면 평균 속도 보정을 끄고 30km/h 고정(10분 이야기 = 목표 5km).
+  - 이 AAOS는 앱이 **user 10**(운전자 프로필)으로 돈다 → `adb shell pm grant`는 `--user 10`을 붙여야 함.
+- **Virtual Console** (`adb forward tcp:8088 tcp:8088` → http://127.0.0.1:8088/)
+  - 값 바꾸기 API (페이지가 쓰는 것): `PUT /vehicle/gear?gear=Park|Reverse|Neutral|Drive`, `PUT /vehicle/odometer?traveled_distance_km=N`, 상태 `GET /vehicle/state`, 목록 `GET /vehicle/catalog`.
+  - **브라우저 세션이 살아 있어야 쓰기가 됨**: 없으면 `503 {"error":"emulator_inactive"}` → `POST /browser/session?client=이름`을 먼저 보내면 됨 (브라우저 탭을 열어 두면 자동).
+  - 주행거리는 **줄일 수 없음** (지금 값보다 작으면 400). 늘리기만 가능.
+  - 확인 결과 (10분 이야기): 기어 D + 주행거리 +1km → 다음 장면 ✔, 갈림길은 바로 질문 ✔, +3km 더 → 안개 다리 ✔, 기어 P → 5초 뒤 정차 이야기 ✔ (선택지 화면에서는 정차 이야기를 끼우지 않음).
 - 남은 시간: NaviHelper(내비 연동) — 내비가 있는 차량에서만 완전 지원.
 - **Pleos 음성 SDK 3.3.1 — 정리: `docs/Pleos_음성SDK_정리.md`, 아래는 SDK jar(javap)와 에뮬레이터(Pleos_Connect_v2.1.0, API 34)에서 직접 확인 (2026-11-14)**
   - 의존성: `ai.pleos.playground:TextToSpeech:3.3.1`, `ai.pleos.playground:SpeechToText:3.3.1`. 권한 `pleos.car.permission.TTS_SERVICE` / `STT_SERVICE` (설치 시 자동 허용됨).

@@ -8,7 +8,12 @@ import com.roadnovel.data.save.EarnedBadge
 import com.roadnovel.data.save.SavedProgress
 import com.roadnovel.data.save.SaveRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
-import com.roadnovel.data.vehicle.VehicleDataSource
+import com.roadnovel.data.vehicle.Gear
+import com.roadnovel.data.vehicle.PleosVehicleDataSource
+import com.roadnovel.data.vehicle.effectiveSpeedKmh
+import com.roadnovel.data.vehicle.isMoving
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import com.roadnovel.story.ChoiceResult
 import com.roadnovel.story.EngineAction
 import com.roadnovel.story.Ending
@@ -47,6 +52,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 enum class ScreenId { HOME, SELECT, PLAYER, ENDING }
 
+/** 차량 데이터 출처 (디버그 패널에서 고름) */
+enum class VehicleSource { MOCK, PLEOS }
+
 data class UiState(
     val screen: ScreenId = ScreenId.HOME,
     val stories: List<Story> = emptyList(),
@@ -55,7 +63,16 @@ data class UiState(
     /** 사용자가 길이를 직접 골랐으면 내비 추천으로 덮어쓰지 않음 */
     val lengthTouched: Boolean = false,
     val etaMin: Int? = null,
+    /** Mock 속도 슬라이더 값 */
     val speedKmh: Float = 0f,
+    val vehicleSource: VehicleSource = VehicleSource.MOCK,
+    /** 지금 출처에서 읽은 값 (화면 표시용) */
+    val liveSpeedKmh: Float? = 0f,
+    val gear: Gear? = null,
+    val odometerKm: Double? = null,
+    val moving: Boolean = false,
+    /** Pleos 차량 연결 상태 한 줄 */
+    val pleosStatus: String = "",
     val timeScale: Int = 10,
     val debugOpen: Boolean = false,
     /** 디버그 패널을 완전히 숨김 (스크린샷·실제 사용용). 로고를 길게 누르면 다시 보임 */
@@ -141,7 +158,7 @@ data class EndingUi(
 class RoadNovelViewModel @Inject constructor(
     private val repository: StoryRepository,
     private val car: MockVehicleDataSource,
-    private val vehicle: VehicleDataSource,
+    private val pleosVehicle: PleosVehicleDataSource,
     private val mockNavi: MockNaviDataSource,
     private val navi: NaviDataSource,
     private val saves: SaveRepository,
@@ -168,6 +185,8 @@ class RoadNovelViewModel @Inject constructor(
     // 차량 값 최신본 (VehicleDataSource 흐름에서 받음)
     private var speed: Float? = 0f
     private var odometer: Double? = null
+    private var gear: Gear? = null
+    private val source = MutableStateFlow(VehicleSource.MOCK)
 
     init {
         car.timeScale = _ui.value.timeScale.toDouble()
@@ -189,8 +208,7 @@ class RoadNovelViewModel @Inject constructor(
             }
         }
         viewModelScope.launch { saves.badges.collect { b -> _ui.update { it.copy(badges = b) } } }
-        viewModelScope.launch { vehicle.speedKmh.collect { speed = it } }
-        viewModelScope.launch { vehicle.odometerKm.collect { odometer = it } }
+        collectVehicle()
         viewModelScope.launch {
             navi.remainingMinutes.collect { eta ->
                 _ui.update { s ->
@@ -234,6 +252,7 @@ class RoadNovelViewModel @Inject constructor(
 
     private fun launchEngine(e: StoryEngine) {
         engine = e
+        updateLearnAverage()
         paused.value = false
         _ui.update {
             it.copy(
@@ -331,6 +350,53 @@ class RoadNovelViewModel @Inject constructor(
 
     fun setEta(min: Int) = mockNavi.setRemainingMinutes(min)
 
+    /** 디버그: 차량 데이터 출처 [Mock(슬라이더) / Pleos 차량] */
+    fun setVehicleSource(src: VehicleSource) {
+        if (src == VehicleSource.PLEOS) pleosVehicle.start()
+        source.value = src
+        engine?.resetOdometerBaseline()
+        updateLearnAverage()
+        _ui.update { it.copy(vehicleSource = src) }
+    }
+
+    /** 속도 값 없이 주행거리계(1km 단위)만 있으면 평균 속도 보정을 끈다 */
+    private fun updateLearnAverage() {
+        engine?.learnAverageSpeed = source.value == VehicleSource.MOCK || speed != null
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun collectVehicle() {
+        fun <T> active(mock: kotlinx.coroutines.flow.Flow<T>, pleos: kotlinx.coroutines.flow.Flow<T>) =
+            source.flatMapLatest { if (it == VehicleSource.MOCK) mock else pleos }
+        viewModelScope.launch { active(car.speedKmh, pleosVehicle.speedKmh).collect { speed = it; onVehicleChanged() } }
+        viewModelScope.launch { active(car.odometerKm, pleosVehicle.odometerKm).collect { odometer = it; onVehicleChanged() } }
+        viewModelScope.launch { active(car.gear, pleosVehicle.gear).collect { gear = it; onVehicleChanged() } }
+        // Pleos 차량을 쓸 수 없으면 자동으로 Mock으로 돌아간다
+        viewModelScope.launch {
+            pleosVehicle.status.collect { st ->
+                val text = when (st) {
+                    PleosVehicleDataSource.Status.Idle -> ""
+                    PleosVehicleDataSource.Status.Checking -> "연결 확인 중…"
+                    is PleosVehicleDataSource.Status.Available ->
+                        "연결됨 · 주행거리 ${if (st.odometer) "O" else "X"} · 기어 ${if (st.gear) "O" else "X"} · 속도 ${if (st.speed) "O" else "X(기어로 판단)"}"
+                    is PleosVehicleDataSource.Status.Unavailable -> "사용 불가: ${st.reason}"
+                }
+                _ui.update { it.copy(pleosStatus = text) }
+                if (st is PleosVehicleDataSource.Status.Unavailable && source.value == VehicleSource.PLEOS) {
+                    setVehicleSource(VehicleSource.MOCK)
+                    showToast("🚗 Pleos 차량 데이터를 쓸 수 없어 Mock으로 돌아왔어요")
+                }
+            }
+        }
+    }
+
+    private fun onVehicleChanged() {
+        updateLearnAverage()
+        _ui.update {
+            it.copy(liveSpeedKmh = speed, gear = gear, odometerKm = odometer, moving = isMoving(speed, gear))
+        }
+    }
+
     // ------------------------------------------------------------------
     // 재생 반복 작업
     // ------------------------------------------------------------------
@@ -339,8 +405,9 @@ class RoadNovelViewModel @Inject constructor(
     private suspend fun clockLoop(e: StoryEngine) = coroutineScope {
         while (isActive) {
             delay(TICK_MS)
-            val simSec = car.advance(TICK_MS / 1000.0)
-            e.tick(simSec, speed, odometer)
+            // Mock은 배속을 적용해 가짜 차를 움직이고, Pleos 차량은 실제 시간 그대로
+            val simSec = if (source.value == VehicleSource.MOCK) car.advance(TICK_MS / 1000.0) else TICK_MS / 1000.0
+            e.tick(simSec, effectiveSpeedKmh(speed, gear), odometer)
             refreshPlayer(e)
         }
     }

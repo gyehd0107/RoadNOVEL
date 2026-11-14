@@ -13,6 +13,13 @@
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
     <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
 
+    <!-- 차량 데이터: Pleos Vehicle SDK 주행거리·기어 (SDK jar의 @RequiresCustomPermission 값) -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- 차량 속도: AAOS PERF_VEHICLE_SPEED (실행 중 허용 필요) -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <!-- 기어: AAOS GEAR_SELECTION -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+
     <!-- Android 11+ : 시스템 TTS 엔진·음성 인식기를 찾을 수 있게 -->
     <queries>
         <intent>

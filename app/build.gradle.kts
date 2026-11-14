@@ -16,6 +16,8 @@ plugins {
 
 android {
     namespace = "com.roadnovel"
+    // AAOS CarPropertyManager (속도)
+    useLibrary("android.car")
     compileSdk = 36
 
     defaultConfig {
@@ -84,6 +86,8 @@ dependencies {
     // Pleos 음성 SDK (docs/Pleos_음성SDK_정리.md)
     implementation(libs.pleos.tts)
     implementation(libs.pleos.stt)
+    // Pleos 차량 SDK (주행거리·기어)
+    implementation(libs.pleos.vehicle)
 
     testImplementation(libs.junit)
 }

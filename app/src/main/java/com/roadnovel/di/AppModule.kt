@@ -9,7 +9,7 @@ import com.roadnovel.data.save.RoomSaveRepository
 import com.roadnovel.data.save.SaveRepository
 import com.roadnovel.data.story.AssetStoryRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
-import com.roadnovel.data.vehicle.VehicleDataSource
+import com.roadnovel.data.vehicle.PleosVehicleDataSource
 import com.roadnovel.story.StoryRepository
 import dagger.Module
 import dagger.Provides
@@ -33,10 +33,10 @@ object AppModule {
     @Singleton
     fun mockVehicle(): MockVehicleDataSource = MockVehicleDataSource()
 
-    // TODO(M5): Pleos 차량 구현이 생기면 여기서 Pleos/Mock 중 고르게 한다
+    /** Pleos 차량 데이터. 디버그 패널에서 "Pleos 차량"을 고르면 그때 연결한다 */
     @Provides
     @Singleton
-    fun vehicleDataSource(mock: MockVehicleDataSource): VehicleDataSource = mock
+    fun pleosVehicle(@ApplicationContext context: Context): PleosVehicleDataSource = PleosVehicleDataSource(context)
 
     @Provides
     @Singleton

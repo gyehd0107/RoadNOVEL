@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.roadnovel.ui.DebugStats
+import com.roadnovel.ui.VehicleSource
 import com.roadnovel.ui.common.formatTime
 import com.roadnovel.ui.theme.RN
 import kotlin.math.roundToInt
@@ -44,6 +45,11 @@ fun DebugPanel(
     /** 선택지가 떠 있을 때만 보이는 시험 녹음 버튼들 (이름 → 보일 말) */
     testAudios: List<Pair<String, String>> = emptyList(),
     onTestAudio: (String) -> Unit = {},
+    vehicleSource: VehicleSource = VehicleSource.MOCK,
+    onVehicleSource: (VehicleSource) -> Unit = {},
+    pleosStatus: String = "",
+    gear: String? = null,
+    odometerKm: Double? = null,
     onSpeed: (Float) -> Unit,
     onTimeScale: (Int) -> Unit,
     onEta: (Int) -> Unit,
@@ -62,7 +68,8 @@ fun DebugPanel(
             Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onToggle).padding(start = 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("🚗 디버그 · ${speedKmh.roundToInt()}km/h ×$timeScale", color = RN.Text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            val summary = if (vehicleSource == VehicleSource.MOCK) "${speedKmh.roundToInt()}km/h ×$timeScale" else "Pleos ${gear ?: "-"}"
+            Text("🚗 디버그 · $summary", color = RN.Text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             Text(if (open) "▼" else "▲", color = RN.Sub)
             // 완전히 숨기기 (로고를 길게 누르면 다시 보임)
@@ -75,6 +82,17 @@ fun DebugPanel(
                 Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                LabelRow("차량 데이터 출처", "")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Seg("Mock (슬라이더)", vehicleSource == VehicleSource.MOCK, Modifier.weight(1f)) { onVehicleSource(VehicleSource.MOCK) }
+                    Seg("Pleos 차량", vehicleSource == VehicleSource.PLEOS, Modifier.weight(1f)) { onVehicleSource(VehicleSource.PLEOS) }
+                }
+                if (vehicleSource == VehicleSource.PLEOS) {
+                    Text(pleosStatus.ifEmpty { "연결 확인 중…" }, color = RN.Teal, fontSize = 13.sp)
+                    KV("기어", gear ?: "-")
+                    KV("주행거리계", odometerKm?.let { "%.1f km".format(it) } ?: "-")
+                    Text("Virtual Console(127.0.0.1:8088)에서 기어·주행거리를 바꿔 보세요", color = RN.Dim, fontSize = 12.sp)
+                } else {
                 LabelRow("차량 속도", "${speedKmh.roundToInt()} km/h")
                 Slider(
                     value = speedKmh,
@@ -93,6 +111,7 @@ fun DebugPanel(
                     listOf(1, 10, 60).forEach { m ->
                         Seg("×$m", timeScale == m, Modifier.weight(1f)) { onTimeScale(m) }
                     }
+                }
                 }
                 LabelRow("내비 도착 예정", etaMin?.let { "${it}분" } ?: "경로 없음")
                 Slider(
