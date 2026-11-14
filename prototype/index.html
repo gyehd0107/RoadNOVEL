@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROAD NOVEL 체험용 시제품</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e18; --panel:#121828; --panel2:#182036; --line:#263049;
+  --text:#eef1f8; --sub:#9aa5bf; --dim:#5f6a85;
+  --gold:#f4b860; --gold2:#ffd89a; --teal:#5fd3c4; --rose:#ff8a8a;
+  --r:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#05070c;color:var(--text);font-family:"Noto Sans KR",system-ui,sans-serif;min-height:100%}
+body{display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 12px 28px}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+.note{max-width:1280px;width:100%;color:var(--sub);font-size:13px;line-height:1.6;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.note b{color:var(--gold2)}
+
+/* 차량 화면 프레임 */
+.wrap{width:100%;max-width:1280px;display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+.screen{flex:1 1 860px;aspect-ratio:16/8.2;min-height:520px;background:radial-gradient(120% 140% at 80% -10%,#1a2340 0%,var(--bg) 55%);border-radius:28px;border:6px solid #1c2233;box-shadow:0 30px 80px #000a, inset 0 0 0 1px #ffffff08;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.stars{position:absolute;inset:0;pointer-events:none;opacity:.55}
+.topbar{position:relative;z-index:2;display:flex;align-items:center;gap:14px;padding:16px 26px 8px;font-size:15px;color:var(--sub)}
+.logo{font-weight:900;letter-spacing:.14em;color:var(--text);font-size:16px}
+.logo span{color:var(--gold)}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:#ffffff0d;border:1px solid var(--line);font-size:14px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal)}
+.dot.stop{background:var(--rose);box-shadow:0 0 10px var(--rose)}
+.spacer{flex:1}
+.view{position:relative;z-index:2;flex:1;display:none;padding:10px 30px 26px;min-height:0}
+.view.on{display:flex}
+
+/* 홈 */
+#home{flex-direction:column;justify-content:center;gap:26px}
+.hero h1{font-family:"Gowun Batang",serif;font-size:clamp(28px,3.3vw,44px);line-height:1.3;font-weight:700}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.hero p{color:var(--sub);margin-top:10px;font-size:17px}
+.cards{display:flex;gap:18px;flex-wrap:wrap}
+.card{flex:1 1 280px;min-height:150px;border-radius:var(--r);padding:22px 24px;background:var(--panel);border:1px solid var(--line);text-align:left;display:flex;flex-direction:column;gap:8px;transition:transform .15s,border-color .15s}
+.card:hover{transform:translateY(-2px);border-color:#3a4766}
+.card .k{font-size:13px;color:var(--sub);letter-spacing:.06em}
+.card .t{font-size:24px;font-weight:700}
+.card .d{color:var(--sub);font-size:15px;line-height:1.5}
+.card.primary{background:linear-gradient(135deg,#f4b860,#e8935a);color:#1b1307;border:none}
+.card.primary .k,.card.primary .d{color:#3b2810}
+.card.resume{border-color:#5fd3c455;background:linear-gradient(135deg,#14302e,#121828)}
+.card.resume .k{color:var(--teal)}
+.badges{display:flex;gap:10px;align-items:center;color:var(--sub);font-size:14px;flex-wrap:wrap}
+.badge{padding:6px 12px;border-radius:999px;background:#ffffff0d;border:1px solid var(--line);color:var(--text)}
+
+/* 선택 */
+#select{flex-direction:column;gap:20px;justify-content:center}
+.sec-t{font-size:15px;color:var(--sub);margin-bottom:10px}
+.genres{display:flex;gap:14px;flex-wrap:wrap}
+.genre{flex:1 1 200px;padding:18px 20px;border-radius:var(--r);background:var(--panel);border:2px solid var(--line);text-align:left}
+.genre.sel{border-color:var(--gold);background:#2a2214}
+.genre .gt{font-size:20px;font-weight:700}
+.genre .gd{font-size:14px;color:var(--sub);margin-top:4px}
+.genre.lock{opacity:.45;cursor:not-allowed}
+.lens{display:flex;gap:14px}
+.len{flex:1;padding:18px 10px;border-radius:var(--r);background:var(--panel);border:2px solid var(--line);font-size:26px;font-weight:900;position:relative}
+.len small{display:block;font-size:13px;font-weight:500;color:var(--sub);margin-top:3px}
+.len.sel{border-color:var(--gold);background:#2a2214}
+.len .rec{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--teal);color:#062421;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.row{display:flex;gap:14px;align-items:center}
+.btn{padding:16px 28px;border-radius:14px;font-size:18px;font-weight:700;background:var(--panel2);border:1px solid var(--line)}
+.btn.go{background:linear-gradient(135deg,#f4b860,#e8935a);color:#1b1307;border:none;padding:18px 40px;font-size:20px}
+.navihint{color:var(--sub);font-size:15px}
+.navihint b{color:var(--teal)}
+
+/* 재생 */
+#player{gap:22px}
+.mapbox{flex:0 0 33%;background:#0d1322cc;border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px}
+.mapbox .mt{font-size:13px;color:var(--sub);display:flex;justify-content:space-between}
+#map{flex:1;width:100%;min-height:0}
+.stage{flex:1;display:flex;flex-direction:column;gap:16px;min-width:0}
+.scene-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.scene-h .ch{color:var(--gold);font-size:14px;font-weight:700;letter-spacing:.08em}
+.scene-h .st{font-family:"Gowun Batang",serif;font-size:26px;font-weight:700}
+.caption{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;min-height:0}
+.who{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--sub)}
+.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--panel2);border:1px solid var(--line)}
+.line{font-family:"Gowun Batang",serif;font-size:clamp(22px,2.3vw,31px);line-height:1.55;font-weight:700;min-height:3.2em}
+.ai-tag{font-family:"Noto Sans KR";font-size:12px;color:#c9b6ff;border:1px solid #c9b6ff66;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+.prog{display:flex;flex-direction:column;gap:7px}
+.prog .pl{display:flex;justify-content:space-between;font-size:14px;color:var(--sub)}
+.bar{height:10px;border-radius:99px;background:#ffffff12;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:99px;transition:width .3s}
+.ctrl{display:flex;gap:12px;align-items:center}
+.ctrl .btn{padding:12px 20px;font-size:16px}
+.safe{font-size:13px;color:var(--dim)}
+
+/* 선택지 오버레이 */
+.overlay{position:absolute;inset:0;z-index:5;background:#05070cd9;backdrop-filter:blur(6px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:30px}
+.overlay.on{display:flex}
+.q{font-family:"Gowun Batang",serif;font-size:clamp(22px,2.4vw,32px);font-weight:700;text-align:center;max-width:900px;line-height:1.5}
+.mic{display:flex;align-items:center;gap:10px;color:var(--teal);font-size:16px}
+.mic .wave{display:flex;gap:3px;align-items:center;height:20px}
+.mic .wave i{width:4px;background:var(--teal);border-radius:2px;animation:w 1s infinite ease-in-out}
+.mic .wave i:nth-child(2){animation-delay:.15s}.mic .wave i:nth-child(3){animation-delay:.3s}.mic .wave i:nth-child(4){animation-delay:.45s}
+@keyframes w{0%,100%{height:5px}50%{height:20px}}
+.opts{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:1000px}
+.opt{flex:1 1 240px;max-width:320px;min-height:120px;border-radius:20px;background:var(--panel);border:2px solid var(--line);padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.opt:hover{border-color:var(--gold)}
+.opt .n{width:34px;height:34px;border-radius:50%;background:var(--gold);color:#1b1307;font-weight:900;display:grid;place-items:center}
+.opt .ol{font-size:22px;font-weight:700}
+.opt .os{font-size:13px;color:var(--sub)}
+.timer{font-size:14px;color:var(--sub)}
+
+/* 대화상자 */
+.dlg{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:30px 34px;max-width:620px;width:100%;display:flex;flex-direction:column;gap:16px;text-align:center}
+.dlg h2{font-size:26px}
+.dlg p{color:var(--sub);line-height:1.6}
+.dlg .row{justify-content:center;flex-wrap:wrap}
+
+/* 결말 */
+#ending{flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+.big-badge{font-size:72px;filter:drop-shadow(0 0 30px #f4b86088)}
+#ending h1{font-family:"Gowun Batang",serif;font-size:clamp(28px,3vw,40px)}
+.sum{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.sum div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 18px;font-size:15px;color:var(--sub)}
+.sum b{display:block;color:var(--text);font-size:20px;margin-top:2px}
+.locked{color:var(--sub);font-size:15px}
+
+.toast{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:8;background:#0e3b37;border:1px solid var(--teal);color:#d6fff9;padding:12px 22px;border-radius:14px;font-size:17px;display:none;align-items:center;gap:10px;box-shadow:0 10px 30px #0008}
+.toast.on{display:flex}
+
+/* 시뮬레이터 */
+.sim{flex:1 1 300px;max-width:100%;background:#0d111b;border:2px dashed #34405e;border-radius:22px;padding:18px 20px;display:flex;flex-direction:column;gap:16px;font-size:14px;color:var(--sub)}
+.sim h3{font-size:16px;color:var(--text)}
+.sim h3 small{display:block;font-weight:400;color:var(--dim);font-size:12px;margin-top:3px}
+.sim label{display:flex;justify-content:space-between;margin-bottom:6px}
+.sim label b{color:var(--text);font-size:16px}
+.sim input[type=range]{width:100%;accent-color:var(--gold)}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:9px 0;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:14px}
+.seg button.sel{background:var(--gold);color:#1b1307;border-color:var(--gold);font-weight:700}
+.simbtn{padding:11px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-size:14px;width:100%}
+.simbtn.red{border-color:#ff8a8a66;color:#ffc2c2}
+.kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:13px}
+.kv b{color:var(--text);font-weight:500;text-align:right}
+.log{font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.5;color:#7f8aa6;max-height:120px;overflow:auto;background:#080b12;border-radius:10px;padding:8px 10px}
+@media (max-width:900px){#player{flex-direction:column}.mapbox{flex:0 0 200px}.screen{aspect-ratio:auto;min-height:640px}}
+</style>
+</head>
+<body>
+
+<div class="note">
+  <div><b>ROAD NOVEL 체험용 시제품</b> · 왼쪽은 차량 화면, 오른쪽은 실제 차 대신 주행을 흉내 내는 <b>시연용 시뮬레이터</b>예요.</div>
+  <div>실제 앱에서는 선택을 <b>음성</b>으로 해요. 이 시제품에서는 버튼으로 대신해요.</div>
+</div>
+
+<div class="wrap">
+<div class="screen" id="screen">
+  <svg class="stars" id="stars"></svg>
+  <div class="topbar">
+    <div class="logo">ROAD <span>NOVEL</span></div>
+    <div class="spacer"></div>
+    <div class="chip"><span class="dot" id="driveDot"></span><span id="driveTxt">정차 중</span></div>
+    <div class="chip">🧭 도착까지 <b id="etaTxt" style="color:var(--text)">23분</b></div>
+    <div class="chip" id="clock">--:--</div>
+  </div>
+
+  <!-- 홈 -->
+  <section class="view on" id="home">
+    <div class="hero">
+      <h1>이번 여정, <em>우리 가족만의 이야기</em>를<br>만들어 볼까요?</h1>
+      <p>차가 달리는 만큼 이야기가 나아가고, 여러분의 선택이 결말을 바꿔요.</p>
+    </div>
+    <div class="cards" id="homeCards"></div>
+    <div class="badges" id="badgeRow"></div>
+  </section>
+
+  <!-- 이야기 선택 -->
+  <section class="view" id="select">
+    <div>
+      <div class="sec-t">① 장르를 골라요</div>
+      <div class="genres">
+        <button class="genre sel"><div class="gt">✨ 판타지 모험</div><div class="gd">별지도 탐험대 · 가족 함께</div></button>
+        <button class="genre lock" disabled><div class="gt">🔍 미스터리</div><div class="gd">준비 중 · 성인 운전자용</div></button>
+        <button class="genre lock" disabled><div class="gt">🎭 드라마</div><div class="gd">준비 중</div></button>
+      </div>
+    </div>
+    <div>
+      <div class="sec-t">② 이야기 길이를 골라요</div>
+      <div class="lens" id="lens">
+        <button class="len" data-l="10">10분<small>짧은 이동</small></button>
+        <button class="len" data-l="20">20분<small>보통</small></button>
+        <button class="len" data-l="30">30분<small>장거리</small></button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="backHome">← 처음으로</button>
+      <div class="navihint" id="naviHint"></div>
+      <div class="spacer"></div>
+      <button class="btn go" id="startBtn">출발! 이야기 시작</button>
+    </div>
+  </section>
+
+  <!-- 재생 -->
+  <section class="view" id="player">
+    <div class="mapbox">
+      <div class="mt"><span>이야기 지도</span><span id="mapLen"></span></div>
+      <svg id="map" viewBox="0 0 300 420"></svg>
+    </div>
+    <div class="stage">
+      <div class="scene-h"><span class="ch" id="chTxt">CHAPTER 1</span><span class="st" id="sceneTitle"></span></div>
+      <div class="caption">
+        <div class="who"><div class="avatar" id="avatar">📖</div><span id="whoTxt">내레이터</span></div>
+        <div class="line" id="lineTxt"></div>
+      </div>
+      <div class="prog">
+        <div class="pl"><span id="progL">다음 장면까지</span><span id="progR"></span></div>
+        <div class="bar"><i id="progBar"></i></div>
+      </div>
+      <div class="ctrl">
+        <button class="btn" id="soundBtn">🔊 소리 켜짐</button>
+        <button class="btn" id="exitBtn">■ 이야기 그만하기</button>
+        <div class="spacer"></div>
+        <div class="safe" id="safeTxt">주행 중에는 화면을 만질 필요가 없어요</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 결말 -->
+  <section class="view" id="ending">
+    <div class="big-badge" id="endBadge">🎵</div>
+    <div style="color:var(--gold);font-weight:700;letter-spacing:.1em">에피소드 완성</div>
+    <h1 id="endName"></h1>
+    <div class="sum" id="endSum"></div>
+    <div class="locked" id="endLocked"></div>
+    <div class="row"><button class="btn go" id="endHome">처음으로</button></div>
+  </section>
+
+  <!-- 선택지 -->
+  <div class="overlay" id="choiceOv">
+    <div class="q" id="qTxt"></div>
+    <div class="mic"><div class="wave"><i></i><i></i><i></i><i></i></div><span>듣고 있어요… 말로 대답해 주세요</span></div>
+    <div class="opts" id="opts"></div>
+    <div class="timer" id="timerTxt"></div>
+  </div>
+
+  <!-- 종료 확인 -->
+  <div class="overlay" id="exitOv">
+    <div class="dlg">
+      <h2>이야기를 여기서 멈출까요?</h2>
+      <p id="exitDesc">지금까지의 장면, 선택, 얻은 물건을 저장하면<br>다음 주행에서 이어서 들을 수 있어요.</p>
+      <div class="row">
+        <button class="btn go" id="saveExit">저장하고 끝내기</button>
+        <button class="btn" id="noSaveExit">저장 안 함</button>
+        <button class="btn" id="cancelExit">계속 듣기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- 시뮬레이터 -->
+<aside class="sim">
+  <h3>🚗 시연용 차량 시뮬레이터 <small>실제 앱: Vehicle SDK·NaviHelper</small></h3>
+  <div>
+    <label>차량 속도 <b id="spdV">0 km/h</b></label>
+    <input type="range" id="spd" min="0" max="110" step="5" value="0">
+  </div>
+  <div class="seg" id="presets">
+    <button data-s="0">정차</button><button data-s="30">시내 30</button><button data-s="60">60</button><button data-s="100">고속 100</button>
+  </div>
+  <div>
+    <label>시간 배속 <b id="mulV">×10</b></label>
+    <div class="seg" id="muls"><button data-m="1">×1</button><button data-m="10" class="sel">×10</button><button data-m="30">×30</button><button data-m="60">×60</button></div>
+  </div>
+  <div>
+    <label>내비 도착 예정 <b id="etaV">23분</b></label>
+    <input type="range" id="eta" min="5" max="90" step="1" value="23">
+  </div>
+  <button class="simbtn" id="naviCut">🔈 내비 안내 끼어들기 (소리 줄이기 시연)</button>
+  <button class="simbtn red" id="crash">⚡ 앱 갑자기 종료 (임시 저장 복구 시연)</button>
+  <div class="kv">
+    <span>이번 주행 거리</span><b id="kvDist">0.00 km</b>
+    <span>이야기 경과 시간</span><b id="kvTime">0:00</b>
+    <span>평균 속도 추정</span><b id="kvAvg">30 km/h</b>
+    <span>장면당 필요 거리</span><b id="kvKpw">-</b>
+    <span>얻은 물건 / 깃발</span><b id="kvItems">-</b>
+  </div>
+  <div class="log" id="log"></div>
+</aside>
+</div>
+
+<script>
+const STORY = {"id": "star_map_expedition", "title": "별지도 탐험대", "genre": "fantasy_adventure", "audience": "family", "ageMin": 6, "version": 1, "summary": "하늘에서 떨어진 별지도 조각을 따라, 가족 탐험대가 길잡이 여우 루미와 함께 '잃어버린 북쪽별'을 찾아 떠나는 모험.", "characters": [{"id": "narrator", "name": "내레이터", "voice": {"pitch": 1.0, "rate": 1.0}}, {"id": "lumi", "name": "루미", "desc": "별빛 꼬리를 가진 길잡이 여우. 씩씩하고 말이 빠르다.", "voice": {"pitch": 1.35, "rate": 1.08}}, {"id": "bolt", "name": "볼트", "desc": "겁이 많지만 기억력이 좋은 작은 로봇 거북.", "voice": {"pitch": 0.8, "rate": 0.92}}, {"id": "giant", "name": "안개 거인", "desc": "다리를 지키는 외로운 거인. 무섭게 보이지만 사실 친구가 필요하다.", "voice": {"pitch": 0.55, "rate": 0.85}}], "start": "s1_departure", "scenes": {"s1_departure": {"chapter": 1, "title": "출발! 별빛 마을", "place": "별빛 마을", "weight": 1.0, "optional": false, "lines": [{"who": "narrator", "text": "어젯밤, 하늘에서 반짝이는 종이 한 장이 우리 차 위로 떨어졌어요. 그건 바로 별지도의 조각이었죠."}, {"who": "lumi", "text": "안녕, 탐험대! 나는 길잡이 여우 루미야. 북쪽별이 사라져서 밤하늘 길이 엉망이 됐어."}, {"who": "bolt", "text": "삐빅. 나는 볼트. 조금 무섭지만… 지도를 기억하는 건 자신 있어."}, {"who": "lumi", "text": "우리 차가 달리는 만큼 지도 위 길도 열려. 자, 출발하자!"}], "ai": {"enabled": true, "hint": "탐험대가 마을을 떠나며 주고받는 짧고 신나는 대화 2~3줄"}, "next": "s2_forest_gate"}, "s2_forest_gate": {"chapter": 1, "title": "속삭이는 숲 입구", "place": "속삭이는 숲", "weight": 1.0, "optional": false, "lines": [{"who": "narrator", "text": "길이 열리자 나무들이 속닥속닥 이야기하는 숲이 나타났어요."}, {"who": "bolt", "text": "지도에 표시가 두 개 있어. 하나는 언덕 위 오래된 성, 하나는 숲속 버섯 마을이야."}, {"who": "lumi", "text": "성에는 반짝이는 열쇠가 있다는 소문이 있고, 마을에는 길을 아는 친구들이 산대."}], "choice": {"question": "탐험대는 어디로 갈까요? 오래된 성일까요, 버섯 마을일까요?", "options": [{"label": "오래된 성", "say": ["성", "오래된 성", "1번", "첫 번째", "첫번째"], "next": "s3a_castle", "setFlags": ["visited_castle"]}, {"label": "버섯 마을", "say": ["마을", "버섯", "버섯 마을", "2번", "두 번째", "두번째"], "next": "s3b_village", "setFlags": ["visited_village"]}], "timeoutSec": 20, "defaultIndex": 0}}, "s3a_castle": {"chapter": 2, "title": "오래된 성", "place": "언덕 위의 성", "weight": 1.2, "optional": false, "lines": [{"who": "narrator", "text": "삐걱— 성문이 열리자 먼지 속에서 은빛이 반짝였어요."}, {"who": "bolt", "text": "저기 계단 위! 은빛 열쇠다. 근데… 계단이 엄청 높아."}, {"who": "lumi", "text": "다 같이 숫자를 세면서 올라가자. 하나, 둘, 셋!"}, {"who": "narrator", "text": "탐험대는 은빛 열쇠를 손에 넣었어요. 열쇠에는 작은 별 그림이 새겨져 있었죠."}], "gainItems": ["silver_key"], "ai": {"enabled": true, "hint": "성 안에서 발견한 신기한 물건 하나를 묘사하는 2줄"}, "next": "s3a2_castle_tower"}, "s3a2_castle_tower": {"chapter": 2, "title": "성의 꼭대기 탑", "place": "성의 탑", "weight": 0.8, "optional": true, "lines": [{"who": "narrator", "text": "탑 꼭대기에 오르자 멀리 안개에 덮인 다리가 보였어요."}, {"who": "bolt", "text": "지도에 따르면 북쪽별은 저 다리 너머에 있어."}, {"who": "lumi", "text": "창밖을 봐! 우리 진짜 차도 저 다리 쪽으로 달리고 있는 것 같지 않아?"}], "next": "s4_fog_bridge"}, "s3b_village": {"chapter": 2, "title": "버섯 마을", "place": "버섯 마을", "weight": 1.2, "optional": false, "lines": [{"who": "narrator", "text": "알록달록 버섯 지붕 아래에서 작은 요정들이 고개를 내밀었어요."}, {"who": "lumi", "text": "안녕! 우리는 북쪽별을 찾는 탐험대야."}, {"who": "narrator", "text": "요정들은 노래 한 소절을 알려 주었어요. '안개 속 친구에게 이 노래를 불러 주렴.'"}, {"who": "bolt", "text": "삐빅, 노래 저장 완료! 나 이런 건 절대 안 잊어버려."}], "gainItems": ["fairy_song"], "ai": {"enabled": true, "hint": "버섯 마을 요정이 탐험대에게 건네는 짧은 응원 2줄"}, "next": "s3b2_village_market"}, "s3b2_village_market": {"chapter": 2, "title": "요정 시장", "place": "요정 시장", "weight": 0.8, "optional": true, "lines": [{"who": "narrator", "text": "마을 한가운데 반딧불 시장이 열렸어요."}, {"who": "lumi", "text": "여기서 빛나는 도토리를 하나 얻었어! 어두운 곳에서 길을 비춰 준대."}, {"who": "bolt", "text": "이제 안개 다리로 가자. 조금… 아주 조금 떨리지만."}], "next": "s4_fog_bridge"}, "s4_fog_bridge": {"chapter": 3, "title": "안개 다리", "place": "안개 다리", "weight": 1.2, "optional": false, "lines": [{"who": "narrator", "text": "드디어 안개 다리에 도착했어요. 그때, 쿵— 쿵— 커다란 발소리가 들렸어요."}, {"who": "giant", "text": "누가… 내 다리를 건너려고 하느냐…"}, {"who": "bolt", "text": "으앗, 거인이다! 등껍질 속에 숨고 싶어."}, {"who": "lumi", "text": "잠깐, 거인 목소리가 왠지 슬퍼 보여. 우리 어떻게 하지?"}], "choice": {"question": "안개 거인에게 어떻게 할까요? 노래를 불러 줄까요, 수수께끼를 낼까요, 아니면 살금살금 지나갈까요?", "options": [{"label": "노래를 불러 준다", "say": ["노래", "1번", "첫 번째", "첫번째"], "next": "e1_friend"}, {"label": "수수께끼를 낸다", "say": ["수수께끼", "퀴즈", "2번", "두 번째", "두번째"], "next": "e2_riddle"}, {"label": "살금살금 지나간다", "say": ["몰래", "살금살금", "지나가", "3번", "세 번째", "세번째"], "next": "e3_sneak"}], "timeoutSec": 20, "defaultIndex": 0}}, "e1_friend": {"chapter": 3, "title": "거인의 친구", "place": "북쪽 하늘", "weight": 1.0, "optional": false, "lines": [{"who": "narrator", "text": "탐험대가 노래를 부르자 안개가 사르르 걷히기 시작했어요."}, {"if": "has:fairy_song", "who": "bolt", "text": "버섯 마을 요정들의 노래야! 내가 한 글자도 안 틀리고 기억했지."}, {"who": "giant", "text": "이렇게 따뜻한 노래는 처음이야… 사실 북쪽별은 내가 외로워서 꼭 안고 있었단다."}, {"who": "narrator", "text": "거인은 북쪽별을 하늘로 돌려보냈고, 이제 탐험대의 친구가 되었어요."}], "ending": {"id": "friend", "name": "노래로 친구가 된 탐험대", "badge": "🎵"}}, "e2_riddle": {"chapter": 3, "title": "수수께끼 대결", "place": "안개 다리 위", "weight": 1.0, "optional": false, "lines": [{"who": "lumi", "text": "거인님, 수수께끼! 낮에는 숨어 있다가 밤에만 길을 알려 주는 것은?"}, {"who": "giant", "text": "음… 음… 모르겠다! 정답이 뭐냐?"}, {"who": "bolt", "text": "정답은 별! 그러니까 북쪽별을 하늘로 보내 줘야 길을 알려 줄 수 있어요."}, {"if": "has:silver_key", "who": "narrator", "text": "은빛 열쇠로 거인의 상자를 열자, 그 안에서 북쪽별이 반짝 떠올랐어요."}, {"who": "narrator", "text": "거인은 껄껄 웃으며 길을 열어 주었어요. 북쪽별이 다시 하늘에서 빛나기 시작했죠."}], "ending": {"id": "riddle", "name": "지혜로 별을 되찾은 탐험대", "badge": "🧩"}}, "e3_sneak": {"chapter": 3, "title": "몰래 건너기", "place": "안개 너머", "weight": 1.0, "optional": false, "lines": [{"who": "narrator", "text": "탐험대는 숨을 꾹 참고 살금살금 다리를 건넜어요."}, {"who": "bolt", "text": "삐… 빅… 소리 안 나게 걷는 중…"}, {"who": "narrator", "text": "다리 끝에서 뒤를 돌아보니, 거인이 혼자 북쪽별을 안고 쓸쓸히 앉아 있었어요."}, {"who": "lumi", "text": "다음 여행에서는 거인에게 꼭 다시 와 보자. 친구가 필요한 것 같아."}], "ending": {"id": "sneak", "name": "다음 모험을 약속한 탐험대", "badge": "🌙", "unlockHint": "다음 주행에서 다시 오면 다른 결말을 볼 수 있어요"}}}, "interludes": [{"id": "i_stop_campfire", "trigger": "vehicle_stopped", "lines": [{"who": "lumi", "text": "잠깐 멈췄네! 우리도 모닥불 앞에서 숨 좀 고르자."}, {"who": "bolt", "text": "삐빅. 지금까지 지나온 곳을 기억해 볼까? 탐험대원 여러분은 기억나요?"}]}, {"id": "i_stop_snack", "trigger": "vehicle_stopped", "lines": [{"who": "bolt", "text": "멈춘 김에 간식 시간! 로봇 거북은 나사 쿠키를 좋아해."}, {"who": "lumi", "text": "다시 출발하면 지도 위 길도 다시 열릴 거야."}]}]};
+
+// ---------- 공통 ----------
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const SAVE_KEY = 'roadnovel_save_v1', BADGE_KEY = 'roadnovel_badges_v1';
+const AVATAR = { narrator:'📖', lumi:'🦊', bolt:'🐢', giant:'🌫️' };
+const CH = Object.fromEntries(STORY.characters.map(c => [c.id, c]));
+function log(msg){ const el=$('log'); const t=fmt(sim.storySec); el.innerHTML = `[${t}] ${msg}<br>` + el.innerHTML; }
+function fmt(s){ s=Math.max(0,Math.floor(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function show(id){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id===id)); }
+function toast(msg, ms=2600){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'), ms); }
+
+// 별 배경
+(function(){ const s=$('stars'); let h=''; for(let i=0;i<70;i++){ h+=`<circle cx="${Math.random()*100}%" cy="${Math.random()*100}%" r="${Math.random()*1.4+.3}" fill="#fff" opacity="${Math.random()*.7+.1}"/>`; } s.innerHTML=h; })();
+setInterval(()=>{ const d=new Date(); $('clock').textContent = d.toTimeString().slice(0,5); }, 1000);
+
+// ---------- 시뮬레이터 (Mock 차량 데이터) ----------
+const sim = { speed:0, mult:10, eta:23, km:0, stoppedSec:0, storySec:0, avgKmMin:0.5 };
+function setSpeed(v){ sim.speed=+v; $('spd').value=v; $('spdV').textContent=v+' km/h';
+  document.querySelectorAll('#presets button').forEach(b=>b.classList.toggle('sel', +b.dataset.s===+v)); updateDriveChip(); }
+function updateDriveChip(){ const moving = sim.speed>0; $('driveDot').classList.toggle('stop', !moving);
+  $('driveTxt').textContent = moving ? `주행 중 ${sim.speed}km/h` : '정차 중';
+  $('safeTxt').textContent = moving ? '주행 중: 선택은 음성으로 · 화면 조작 없음' : '정차 중';
+}
+$('spd').oninput = e => setSpeed(e.target.value);
+document.querySelectorAll('#presets button').forEach(b=> b.onclick = ()=> setSpeed(b.dataset.s));
+document.querySelectorAll('#muls button').forEach(b=> b.onclick = ()=>{ sim.mult=+b.dataset.m; $('mulV').textContent='×'+sim.mult;
+  document.querySelectorAll('#muls button').forEach(x=>x.classList.toggle('sel', x===b)); });
+$('eta').oninput = e => { sim.eta=+e.target.value; $('etaV').textContent=sim.eta+'분'; $('etaTxt').textContent=sim.eta+'분'; renderNaviHint(); };
+
+// ---------- 음성 (실제 앱: Pleos TextToSpeech) ----------
+let soundOn = true, ducked = false;
+const tts = {
+  voice:null,
+  init(){ if(!('speechSynthesis' in window)) return; const pick=()=>{ const vs=speechSynthesis.getVoices(); this.voice = vs.find(v=>/ko/i.test(v.lang)) || null; }; pick(); speechSynthesis.onvoiceschanged = pick; },
+  speak(text, who){
+    return new Promise(resolve=>{
+      const est = 1200 + text.length*95;           // 소리가 없을 때 읽는 시간
+      let done=false; const t0=Date.now();
+      // 음성이 오류로 바로 끝나도 자막은 읽을 시간만큼 보여줌
+      const finish=()=>{ if(done) return; done=true; const left = est*0.6 - (Date.now()-t0); left>0 ? setTimeout(resolve,left) : resolve(); };
+      if(!soundOn || !('speechSynthesis' in window)){ setTimeout(finish, est); return; }
+      try{
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang='ko-KR'; if(this.voice) u.voice=this.voice;
+        const v = (CH[who]&&CH[who].voice)||{pitch:1,rate:1};
+        u.pitch = Math.min(2, v.pitch); u.rate = v.rate; u.volume = ducked ? 0.25 : 1;
+        u.onend = finish; u.onerror = finish;
+        speechSynthesis.speak(u);
+        setTimeout(finish, est + 6000);             // onend가 안 오는 브라우저 대비
+      }catch(e){ setTimeout(finish, est); }
+    });
+  },
+  stop(){ try{ speechSynthesis.cancel(); }catch(e){} }
+};
+tts.init();
+$('soundBtn').onclick = ()=>{ soundOn=!soundOn; $('soundBtn').textContent = soundOn?'🔊 소리 켜짐':'🔇 자막만'; if(!soundOn) tts.stop(); };
+
+// ---------- AI 대사 예시 (실제 앱: Pleos LLM + 안전 필터) ----------
+const AI_LINES = {
+  s1_departure: [ {who:'bolt',text:'출발 전에 안전벨트 확인! 삐빅, 모두 철컥 완료.'}, {who:'lumi',text:'창밖 나무들도 우리한테 손 흔드는 것 같아!'} ],
+  s3a_castle:   [ {who:'bolt',text:'벽에 걸린 그림 속 기사가 윙크한 것 같아…'}, {who:'lumi',text:'괜찮아, 저건 우리를 응원하는 거야!'} ],
+  s3b_village:  [ {who:'lumi',text:'요정들이 탐험대 이름을 노래로 불러 주고 있어!'}, {who:'bolt',text:'삐빅, 기분 최고 모드 켜짐.'} ]
+};
+
+// ---------- 스토리 엔진 (CLAUDE.md 8장 규칙) ----------
+let S = null;          // 진행 상태
+let L = 20;            // 선택한 길이(분)
+let runId = 0;         // 재생 흐름 취소용
+
+function sceneNext(id){ // optional 건너뛰기 반영
+  let sc = STORY.scenes[id];
+  while(sc && sc.optional && L===10){ log(`10분 모드: "${sc.title}" 건너뜀`); id = sc.next; sc = STORY.scenes[id]; }
+  return id;
+}
+function longestWeight(id, seen=new Set()){
+  const sc = STORY.scenes[id]; if(!sc||seen.has(id)) return 0;
+  const w = (sc.optional && L===10) ? 0 : (sc.weight||1);
+  const nexts = sc.choice ? sc.choice.options.map(o=>o.next) : (sc.next?[sc.next]:[]);
+  return w + (nexts.length ? Math.max(...nexts.map(n=>longestWeight(n,new Set([...seen,id])))) : 0);
+}
+function kmPerWeight(){
+  const targetKm = L * sim.avgKmMin;
+  return targetKm / Math.max(1, S.doneWeight + longestWeight(S.sceneId));
+}
+function newState(){ return { storyId:STORY.id, L, sceneId:STORY.start, lineIdx:0, flags:[], items:[], choices:[], doneWeight:0,
+  km:0, sceneStartKm:0, sec:0, waitSec:0, usedInterludes:[], aiUsed:[], phase:'lines', path:[STORY.start] }; }
+
+function autosave(temp=true){ if(!S) return; store.set(SAVE_KEY, { state:S, L, savedAt:Date.now(), temp }); }
+
+async function playScene(){
+  const my = ++runId;
+  const sc = STORY.scenes[S.sceneId];
+  $('chTxt').textContent = 'CHAPTER ' + sc.chapter;
+  $('sceneTitle').textContent = sc.title;
+  drawMap();
+  (sc.gainItems||[]).forEach(it=>{ if(!S.items.includes(it)){ S.items.push(it); log(`아이템 획득: ${it}`); }});
+  autosave(true);
+  S.phase='lines';
+  const lines = sc.lines.filter(l => !l.if || (l.if.startsWith('has:') && S.items.includes(l.if.slice(4))));
+  for(; S.lineIdx < lines.length; S.lineIdx++){
+    if(my!==runId) return;
+    await sayLine(lines[S.lineIdx]);
+    await interludeIfStopped(my);
+  }
+  if(my!==runId) return;
+  if(sc.ending){ return finishStory(sc); }
+  if(sc.choice){ return askChoice(sc, my); }
+  // 대사는 끝, 거리 조건 기다리기
+  S.phase='waiting'; S.waitSec=0;
+  await waitForDistance(sc, my);
+}
+
+let duckCount = 0;
+async function sayLine(l, ai=false){
+  $('avatar').textContent = AVATAR[l.who]||'📖';
+  $('whoTxt').textContent = (CH[l.who]||{name:''}).name;
+  $('lineTxt').innerHTML = l.text + (ai?'<span class="ai-tag">✨ AI 생성 대사</span>':'');
+  while(true){                       // 내비 안내가 끼어들면 그 줄을 다시 읽음
+    while(ducked){ await sleep(200); }
+    const before = duckCount;
+    await tts.speak(l.text, l.who);
+    if(before === duckCount) break;
+  }
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+async function interludeIfStopped(my){
+  if(sim.stoppedSec < 5 || sim.stopHandled || S.km < 0.3) return;   // 출발 전 정차는 무시
+  sim.stopHandled = true;           // 한 번 정차할 때 한 번만
+  const it = STORY.interludes.find(i=>!S.usedInterludes.includes(i.id));
+  if(!it) return;
+  S.usedInterludes.push(it.id); log(`정차 감지 → 정차 이벤트 "${it.id}"`);
+  toast('🏕️ 정차 이벤트: 탐험대도 잠깐 쉬어요');
+  for(const l of it.lines){ if(my!==runId) return; await sayLine(l); }
+}
+
+async function waitForDistance(sc, my){
+  const need = () => (sc.weight||1) * kmPerWeight();
+  const stallLimit = () => (sc.weight||1) * (L*60 / Math.max(1,longestWeight(STORY.start))) * 1.5;
+  // 거리 부족 → AI 추가 대사 먼저
+  if(sc.ai && sc.ai.enabled && !S.aiUsed.includes(S.sceneId) && (S.km - S.sceneStartKm) < need()){
+    S.aiUsed.push(S.sceneId);
+    for(const l of (AI_LINES[S.sceneId]||[])){ if(my!==runId) return; await sayLine(l, true); }
+  }
+  if((S.km - S.sceneStartKm) < need()){ $('lineTxt').innerHTML = '<span style="color:var(--sub);font-size:.8em">🎶 (배경음) 탐험대가 길을 따라 이동하고 있어요…</span>'; $('avatar').textContent='🎶'; $('whoTxt').textContent=''; }
+  while(my===runId){
+    await interludeIfStopped(my);
+    const moved = S.km - S.sceneStartKm;
+    if(moved >= need()){ log(`거리 조건 충족 (${moved.toFixed(2)}km)`); break; }
+    if(S.waitSec >= stallLimit()){ log('막힘 방지: 시간이 지나 다음 장면으로'); break; }
+    await sleep(150);
+  }
+  if(my!==runId) return;
+  goTo(sc.next);
+}
+
+function goTo(nextId){
+  const sc = STORY.scenes[S.sceneId];
+  S.doneWeight += (sc.weight||1);
+  S.sceneId = sceneNext(nextId); S.lineIdx = 0; S.sceneStartKm = S.km; S.path.push(S.sceneId);
+  log(`다음 장면: ${STORY.scenes[S.sceneId].title}`);
+  playScene();
+}
+
+let choiceTimer = null;
+async function askChoice(sc, my){
+  S.phase='choice';
+  const ch = sc.choice;
+  $('qTxt').textContent = ch.question;
+  $('opts').innerHTML = ch.options.map((o,i)=>`<button class="opt" data-i="${i}"><div class="n">${i+1}</div><div class="ol">${o.label}</div><div class="os">“${o.say[0]}”라고 말해도 돼요</div></button>`).join('');
+  $('choiceOv').classList.add('on');
+  $('opts').querySelectorAll('.opt').forEach(b=> b.onclick = ()=> pick(+b.dataset.i, '버튼'));
+  let left = ch.timeoutSec;
+  $('timerTxt').textContent = `${left}초 안에 대답이 없으면 "${ch.options[ch.defaultIndex].label}"(으)로 갈게요`;
+  tts.speak(ch.question, 'narrator');
+  clearInterval(choiceTimer);
+  choiceTimer = setInterval(()=>{ left--; $('timerTxt').textContent = `${left}초 안에 대답이 없으면 "${ch.options[ch.defaultIndex].label}"(으)로 갈게요`;
+    if(left<=0) pick(ch.defaultIndex, '시간 초과 기본값'); }, 1000);
+  function pick(i, how){
+    if(my!==runId) return;
+    clearInterval(choiceTimer); $('choiceOv').classList.remove('on'); tts.stop();
+    const o = ch.options[i];
+    S.choices.push({scene:S.sceneId, label:o.label}); (o.setFlags||[]).forEach(f=>S.flags.push(f));
+    log(`선택: ${o.label} (${how})`); toast(`🗺️ 탐험대의 선택: ${o.label}`);
+    goTo(o.next);
+  }
+}
+
+function finishStory(sc){
+  S.phase='ended';
+  const e = sc.ending;
+  const badges = store.get(BADGE_KEY)||[];
+  if(!badges.find(b=>b.id===e.id)) badges.push({id:e.id, name:e.name, badge:e.badge});
+  store.set(BADGE_KEY, badges); store.del(SAVE_KEY);
+  setTimeout(()=>{
+    $('endBadge').textContent = e.badge; $('endName').textContent = e.name;
+    $('endSum').innerHTML = `<div>함께 고른 길<b>${S.choices.map(c=>c.label).join(' → ')||'-'}</b></div><div>함께 달린 거리<b>${S.km.toFixed(1)} km</b></div><div>이야기 시간<b>${fmt(S.sec)}</b></div>`;
+    const all = Object.values(STORY.scenes).filter(s=>s.ending).map(s=>s.ending);
+    const others = all.filter(x=>!badges.find(b=>b.id===x.id)).length;
+    $('endLocked').textContent = others ? `아직 못 본 결말이 ${others}개 있어요. 다음 여행에서 다른 선택을 해 보세요!` : '모든 결말을 모았어요! 🎉';
+    show('ending'); log(`결말 도착: ${e.name}`);
+  }, 900);
+}
+
+// 시간 흐름 (0.1초마다)
+setInterval(()=>{
+  const dt = 0.1 * sim.mult;               // 시뮬레이션 초
+  const dKm = sim.speed/3600*dt;
+  sim.km += dKm;
+  sim.stoppedSec = sim.speed < 0.5 ? sim.stoppedSec + dt : 0;
+  if(sim.speed >= 0.5) sim.stopHandled = false;
+  if(sim.speed>0){ sim.avgKmMin = sim.avgKmMin*0.995 + (sim.speed/60)*0.005; }
+  if(S && $('player').classList.contains('on') && S.phase!=='ended' && !$('exitOv').classList.contains('on')){
+    S.km += dKm; S.sec += 0.1; sim.storySec = S.sec;   // 이야기 시간은 실제 들은 시간 if(S.phase==='waiting') S.waitSec += dt;
+    const sc = STORY.scenes[S.sceneId];
+    const need = (sc.weight||1)*kmPerWeight(); const moved = S.km - S.sceneStartKm;
+    const pct = sc.ending ? 100 : Math.min(100, moved/need*100);
+    $('progBar').style.width = pct+'%';
+    $('progL').textContent = sc.choice ? (S.phase==='choice' ? '탐험대의 선택을 기다려요' : '곧 갈림길이 나와요') : sc.ending ? '마지막 장면' : '다음 장면까지';
+    $('progR').textContent = sc.ending||sc.choice ? '' : `${Math.max(0,need-moved).toFixed(2)} km 남음`;
+    $('kvKpw').textContent = kmPerWeight().toFixed(2)+' km';
+    $('kvItems').textContent = [...S.items, ...S.flags].join(', ') || '-';
+  }
+  $('kvDist').textContent = (S?S.km:0).toFixed(2)+' km';
+  $('kvTime').textContent = fmt(S?S.sec:0);
+  $('kvAvg').textContent = Math.round(sim.avgKmMin*60)+' km/h';
+}, 100);
+
+// ---------- 이야기 지도 ----------
+const MAP = {
+  s1_departure:[150,385], s2_forest_gate:[150,315],
+  s3a_castle:[75,240], s3a2_castle_tower:[75,175], s3b_village:[225,240], s3b2_village_market:[225,175],
+  s4_fog_bridge:[150,110], e1_friend:[60,35], e2_riddle:[150,35], e3_sneak:[240,35]
+};
+function drawMap(){
+  const svg = $('map'); let h='';
+  for(const [id,sc] of Object.entries(STORY.scenes)){
+    const a = MAP[id]; const ns = sc.choice?sc.choice.options.map(o=>o.next):(sc.next?[sc.next]:[]);
+    ns.forEach(n=>{ const b=MAP[n]; const walked = S.path.includes(id)&&S.path.includes(n);
+      h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${walked?'#f4b860':'#2b3550'}" stroke-width="${walked?4:2}" stroke-dasharray="${walked?'':'5 6'}"/>`; });
+  }
+  for(const [id,sc] of Object.entries(STORY.scenes)){
+    const [x,y] = MAP[id]; const cur = id===S.sceneId, been = S.path.includes(id);
+    const skipped = sc.optional && L===10;
+    const r = sc.ending?15:(cur?16:11);
+    h+=`<circle cx="${x}" cy="${y}" r="${r}" fill="${cur?'#f4b860':been?'#5fd3c4':'#182036'}" stroke="${skipped?'#2b3550':'#3a4766'}" stroke-width="2" ${skipped?'opacity=".35"':''}/>`;
+    if(sc.ending) h+=`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="14">${been?sc.ending.badge:'?'}</text>`;
+    if(cur) h+=`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="15">🚗</text>`;
+    const label = sc.place.length>6 ? sc.place.slice(0,6)+'…' : sc.place;
+    h+=`<text x="${x}" y="${y+(sc.ending?-20:30)}" text-anchor="middle" font-size="11.5" fill="${cur?'#ffd89a':'#8d97b2'}" font-family="Noto Sans KR">${skipped?'(건너뜀)':label}</text>`;
+  }
+  svg.innerHTML = h;
+  $('mapLen').textContent = `${L}분 이야기`;
+}
+
+// ---------- 화면 흐름 ----------
+function renderHome(){
+  const save = store.get(SAVE_KEY);
+  let html = '';
+  if(save && save.state){
+    const sc = STORY.scenes[save.state.sceneId];
+    html += `<button class="card resume" id="resumeCard"><div class="k">${save.temp?'⚡ 지난번에 갑자기 멈췄어요':'▶ 이어 듣기'}</div><div class="t">${STORY.title} · ${sc.title}</div><div class="d">${save.L}분 이야기 · 지금까지 ${save.state.choices.map(c=>c.label).join(' → ')||'선택 전'} · ${save.state.km.toFixed(1)}km 함께 달림</div></button>`;
+  }
+  html += `<button class="card primary" id="newCard"><div class="k">새 이야기</div><div class="t">✨ 이야기 고르기</div><div class="d">장르와 길이를 고르면 바로 출발해요</div></button>`;
+  $('homeCards').innerHTML = html;
+  $('newCard').onclick = ()=>{ show('select'); renderNaviHint(); };
+  if($('resumeCard')) $('resumeCard').onclick = ()=> resume(save);
+  const badges = store.get(BADGE_KEY)||[];
+  $('badgeRow').innerHTML = badges.length ? '모은 결말 배지 ' + badges.map(b=>`<span class="badge">${b.badge} ${b.name}</span>`).join('') : '';
+}
+function recommendLen(){ return sim.eta<=14 ? 10 : sim.eta<=25 ? 20 : 30; }
+function renderNaviHint(){
+  const r = recommendLen();
+  $('naviHint').innerHTML = `🧭 내비 기준 도착까지 <b>${sim.eta}분</b> → <b>${r}분</b> 이야기를 추천해요`;
+  document.querySelectorAll('.len').forEach(b=>{ const old=b.querySelector('.rec'); if(old) old.remove();
+    if(+b.dataset.l===r){ const s=document.createElement('span'); s.className='rec'; s.textContent='내비 추천'; b.appendChild(s); } });
+  if(!renderNaviHint.touched){ L=r; markLen(); }
+}
+function markLen(){ document.querySelectorAll('.len').forEach(b=>b.classList.toggle('sel', +b.dataset.l===L)); }
+document.querySelectorAll('.len').forEach(b=> b.onclick = ()=>{ L=+b.dataset.l; renderNaviHint.touched=true; markLen(); });
+$('backHome').onclick = ()=>{ show('home'); renderHome(); };
+$('startBtn').onclick = ()=>{
+  S = newState(); S.sceneId = sceneNext(S.sceneId); sim.storySec=0;
+  $('log').innerHTML=''; log(`새 이야기 시작: ${L}분 (목표 거리 ≈ ${(L*sim.avgKmMin).toFixed(1)}km)`);
+  show('player'); toast('🚗 출발하면 이야기가 앞으로 나아가요. 시뮬레이터에서 속도를 올려 보세요!', 3600);
+  playScene();
+};
+function resume(save){
+  S = save.state; L = save.L; sim.storySec = S.sec;
+  log(`저장된 지점부터 이어 듣기: ${STORY.scenes[S.sceneId].title}`);
+  show('player'); toast('▶ 지난번 그 장면부터 이어서 들려줄게요');
+  playScene();
+}
+$('exitBtn').onclick = ()=>{ runId++; tts.stop(); $('exitOv').classList.add('on'); };
+$('cancelExit').onclick = ()=>{ $('exitOv').classList.remove('on'); playScene(); };
+$('saveExit').onclick = ()=>{ runId++; clearInterval(choiceTimer); $('choiceOv').classList.remove('on'); autosave(false); $('exitOv').classList.remove('on'); log('저장하고 종료'); show('home'); renderHome(); toast('💾 저장했어요. 다음 주행에서 이어 들을 수 있어요'); };
+$('noSaveExit').onclick = ()=>{ runId++; clearInterval(choiceTimer); $('choiceOv').classList.remove('on'); store.del(SAVE_KEY); S=null; $('exitOv').classList.remove('on'); show('home'); renderHome(); toast('기록을 지웠어요'); };
+$('endHome').onclick = ()=>{ S=null; show('home'); renderHome(); };
+
+// 내비 안내 끼어들기 → 소리 줄이고 잠시 멈춤
+$('naviCut').onclick = ()=>{
+  ducked = true; duckCount++; tts.stop(); toast('🧭 내비: 300m 앞에서 오른쪽 방향입니다 — 이야기 잠시 멈춤', 3000);
+  log('내비 안내 → 이야기 음성 줄임/일시정지');
+  setTimeout(()=>{ ducked=false; log('내비 안내 끝 → 이야기 다시 재생'); }, 3000);
+};
+// 앱 강제 종료 → 임시 저장만 남은 상태로 홈
+$('crash').onclick = ()=>{
+  if(!S || S.phase==='ended'){ toast('이야기를 재생하는 중에 눌러 보세요'); return; }
+  runId++; tts.stop(); clearInterval(choiceTimer); $('choiceOv').classList.remove('on'); $('exitOv').classList.remove('on');
+  autosave(true); S=null; log('앱 강제 종료! (임시 저장만 남음)');
+  show('home'); renderHome(); toast('⚡ 앱을 다시 켰어요. 임시 저장된 이야기를 복구할 수 있어요', 3400);
+};
+
+setSpeed(0); renderHome(); renderNaviHint();
+</script>
+</body>
+</html>

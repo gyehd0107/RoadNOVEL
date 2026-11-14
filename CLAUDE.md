@@ -1,0 +1,164 @@
+# ROAD NOVEL — Claude Code 작업 지침
+
+이 파일은 Claude Code가 이 저장소에서 일할 때 따라야 하는 규칙과 설계입니다.
+작업을 시작하기 전에 항상 이 파일을 먼저 읽으세요.
+
+## 1. 앱 한 줄 소개
+
+차량의 실제 주행(이동 거리, 정차)과 탑승자의 음성 선택에 따라 전개와 결말이 달라지고,
+원하는 길이(10/20/30분)만큼 듣다가 다음 주행에서 이어 들을 수 있는 **차량용 인터랙티브 오디오 스토리 앱**.
+
+- 대상 플랫폼: 현대자동차그룹 **Pleos Connect** (Android Automotive OS 기반)
+- 1차 타깃: 어린이를 동반한 가족 (판타지·모험 장르)
+- 시연 환경: Android Studio + **Pleos Connect Emulator**
+- 일정: 11/15 서류 제출(선택 가산점: GitHub, APK, 시연 영상) → 12/3~4 최종 PT에서 에뮬레이터 시연
+
+## 2. 가장 중요한 원칙 5가지
+
+1. **항상 실행되는 상태 유지.** 모든 차량·음성·AI 기능은 인터페이스 뒤에 숨기고, **Mock 구현을 반드시 함께** 만든다. Pleos SDK가 없거나 에뮬레이터에서 값이 안 나와도 앱은 Mock으로 끝까지 시연 가능해야 한다.
+2. **SDK API를 지어내지 않는다.** Pleos SDK의 클래스·메서드 이름은 공식 문서(https://document.pleos.ai)나 SDK 샘플에서 확인한 것만 쓴다. 확인이 안 되면 인터페이스와 `TODO(pleos-check)` 주석을 남기고 Mock으로 동작하게 둔다.
+3. **이야기의 뼈대는 데이터, AI는 대사만.** 사건·분기·결말은 `assets/stories/*.json`에 미리 설계된 대로만 진행한다. LLM은 장면 사이의 짧은 추가 대사만 만들고, 실패하면 그냥 건너뛴다. (아동 대상이므로 안전 필터 필수 — 7장 참고)
+4. **운전자 안전 우선.** 주행 중에는 화면 조작이 필요 없게 만든다(음성 우선). 내비 안내 음성이 나오면 이야기 소리를 줄이거나 멈춘다. Pleos의 Driving Restriction Policy·Driver Distraction 심사 가이드를 따른다.
+5. **작은 단위로 확인.** 기능 하나를 만들 때마다 `./gradlew assembleDebug`와 단위 테스트를 통과시킨 뒤 다음으로 넘어간다.
+
+## 3. 기술 스택
+
+- Kotlin, Jetpack Compose, Coroutines/Flow
+- Hilt (의존성 주입 — Pleos 공식 튜토리얼도 Hilt로 Vehicle 인스턴스를 주입함)
+- Room (스토리 진행 저장), kotlinx.serialization (스토리 JSON 읽기)
+- 화면: 가로형 차량 디스플레이 기준, 다크 테마, 큰 터치 영역(최소 76dp)
+
+## 4. Pleos SDK 설정 (문서에서 확인한 내용)
+
+- Maven 저장소 (`settings.gradle.kts`의 `dependencyResolutionManagement.repositories`):
+  ```kotlin
+  maven("https://nexus-playground.pleos.ai/repository/maven-releases/")
+  ```
+- 의존성 그룹: `ai.pleos.playground` (예: `implementation("ai.pleos.playground:SpeechToText:<버전>")`)
+  - 사용 모듈: Vehicle, NaviHelper, TextToSpeech, SpeechToText, LLM (+ 필요 시 FusedLocation)
+  - **버전과 정확한 아티팩트 이름은 각 SDK의 "Importing SDK / Project Setup" 문서에서 최신값을 확인해서 넣는다.**
+- 권한 예: `pleos.car.permission.STT_SERVICE` (SpeechToText). 다른 SDK의 권한도 각 문서의 Project Setup에서 확인해 `AndroidManifest.xml`에 추가한다.
+- TextToSpeech는 `TextToSpeech(context, Mode.HYBRID)`로 만들고 `initialize()` → 사용 → `release()` 순서. HYBRID는 네트워크가 없으면 온디바이스로 전환된다(터널 대비).
+- SpeechToText의 서버 인식은 `registerApp` 이 필요하다.
+- Vehicle SDK는 기능 그룹(Brake, Odometer, TurnSignal 등)을 `vehicle.getXXX()`로 얻어 쓴다. 차종마다 지원이 다르므로 `checkXXXCapabilities` 계열 API로 먼저 지원 여부를 확인한다.
+- **Vehicle SDK에는 속도 항목이 없다.** 속도·정차 판단은 AAOS 표준 `CarPropertyManager` + `VehiclePropertyIds.PERF_VEHICLE_SPEED`(또는 NaviHelper 주행 정보 이벤트)로 한다.
+- 이동 거리: 1순위 Vehicle SDK **Odometer**, 2순위 AAOS `PERF_ODOMETER`, 3순위 FusedLocation 위치 변화 누적.
+- 남은 시간: NaviHelper(내비 연동) — 내비가 있는 차량에서만 완전 지원.
+
+## 5. 폴더 구조 (목표)
+
+```
+app/src/main/
+  assets/stories/            # 스토리 JSON (star_map_expedition.json 등)
+  java/.../roadnovel/
+    data/vehicle/            # VehicleDataSource (+ Pleos 구현, Mock 구현)
+    data/navi/               # NaviDataSource (+ Pleos 구현, Mock 구현)
+    data/save/               # Room: SavedProgressEntity, Dao, SaveRepository
+    story/                   # StoryModels, StoryRepository, StoryEngine (순수 Kotlin)
+    voice/                   # Narrator(TTS), VoiceInput(STT) (+ Pleos, Android 기본, Mock)
+    ai/                      # DialogueGenerator (+ Pleos LLM, Mock), SafetyFilter
+    audio/                   # AudioFocus·덕킹 처리, 효과음/배경음
+    ui/                      # home, select, player, ending, debug
+    di/                      # Hilt 모듈 (빌드 설정으로 Pleos/Mock 선택)
+```
+
+## 6. 핵심 인터페이스
+
+```kotlin
+interface VehicleDataSource {
+    val odometerKm: Flow<Double?>   // 누적 주행거리(km). 모르면 null
+    val speedKmh: Flow<Float?>      // 현재 속도. 모르면 null
+}
+// isStopped = speed가 0.5km/h 미만으로 5초 이상 유지
+
+interface NaviDataSource {
+    val remainingMinutes: Flow<Int?> // 목적지까지 남은 시간. 경로 없으면 null
+}
+
+interface Narrator {                 // TTS
+    suspend fun speak(text: String, voice: VoiceStyle) // 끝날 때까지 suspend
+    fun stop()
+    fun setDucked(ducked: Boolean)
+}
+
+interface VoiceInput {               // STT
+    suspend fun listen(timeoutSec: Int): String?        // 인식된 문장, 실패 시 null
+}
+
+interface DialogueGenerator {        // LLM
+    suspend fun extraLines(context: StoryContext, hint: String): List<StoryLine> // 실패 시 빈 리스트
+}
+```
+
+`MockVehicleDataSource`는 디버그 패널(속도 슬라이더, 정차 버튼, 시간 배속 ×1/×10)로 값을 바꿀 수 있어야 한다. **PT 시연에서 이 디버그 패널로 "차가 달리면 이야기가 진행되는 것"을 보여준다.** (에뮬레이터 자체의 차량 값 시뮬레이션이 되면 그것도 지원)
+
+## 7. 스토리 데이터 형식 (assets/stories/*.json)
+
+예시는 `star_map_expedition.json`. 주요 필드:
+
+| 필드 | 뜻 |
+|---|---|
+| `start` | 첫 장면 id |
+| `scenes.{id}.lines[]` | `who`(인물 id), `text`, 선택 `if`(`"has:아이템"`일 때만 읽음) |
+| `scenes.{id}.weight` | 이 장면이 차지하는 거리 비중 (기본 1.0) |
+| `scenes.{id}.optional` | true면 10분 모드에서 건너뜀 |
+| `scenes.{id}.next` | 다음 장면 id |
+| `scenes.{id}.choice` | `question`, `options[]`(`label`, `say`[인식 키워드], `next`, `setFlags`), `timeoutSec`, `defaultIndex` |
+| `scenes.{id}.ending` | 결말 장면 (`id`, `name`, `badge`) |
+| `scenes.{id}.gainItems` | 이 장면에서 얻는 아이템 (뒤 장면의 `if`에 쓰임) |
+| `scenes.{id}.ai` | `enabled`, `hint` — LLM 추가 대사 생성 지점 |
+| `interludes[]` | `trigger: "vehicle_stopped"`일 때 한 번씩 재생하는 짧은 장면 |
+
+`optional` 장면에서 `next`로 이어질 때, 10분 모드에서는 그 장면을 건너뛰고 그 장면의 `next`로 바로 간다.
+
+## 8. StoryEngine 규칙 (순수 Kotlin, 단위 테스트 필수)
+
+1. **길이 계획**: 선택한 길이 `L`(10/20/30분). `L == 10`이면 optional 장면 제외.
+2. **거리 목표**: `targetKm = L × 평균속도(km/분)`. 평균속도는 처음엔 0.5km/분(30km/h)으로 두고, 주행하면서 최근 5분 평균으로 계속 보정한다.
+   `kmPerWeight = targetKm / (현재 위치부터 결말까지 가장 긴 경로의 weight 합 + 지나온 weight 합)`
+3. **다음 장면으로 넘어가는 조건** — 둘 다 만족해야 함:
+   - 현재 장면 대사를 다 읽었다
+   - 장면 시작 후 이동 거리 ≥ `weight × kmPerWeight`
+4. 대사는 끝났는데 거리가 부족하면: AI 추가 대사 → 그래도 남으면 배경음만 재생하며 기다린다.
+5. **정차 처리**: 정차 상태가 되면 아직 안 쓴 interlude를 하나 재생한다.
+6. **막힘 방지**: 기다린 시간이 `(weight × L / 전체weight) × 1.5분`을 넘으면 거리와 상관없이 다음 장면으로 간다 (꽉 막힌 길에서도 이야기가 멈추지 않게).
+7. **선택지**: 질문을 TTS로 읽고 → `listen(timeoutSec)` → `say` 키워드가 들어 있는지 확인 → 실패하면 한 번 더 묻고 → 그래도 실패하면 `defaultIndex`. 화면의 큰 버튼(동승자용)으로도 고를 수 있다.
+8. **상태**(`StoryState`): storyId, lengthMin, sceneId, lineIndex, flags, items, choices 기록, 누적 거리, 경과 시간, endingId.
+
+## 9. 저장·이어 듣기
+
+- 장면이 바뀔 때마다 **자동 임시 저장**(`isTemp = true`) → 앱이 갑자기 꺼져도 복구.
+- 사용자가 "그만", "이야기 끝내줘"라고 말하거나 종료 버튼을 누르면 → "지금까지 이야기를 저장할까요?" 질문 → "저장" 시 `isTemp = false`로 확정, "아니" 시 해당 기록 삭제.
+- 앱 시작 시 저장된 기록이 있으면 홈 화면 첫 카드에 "이어 듣기"(장면 이름, 남은 분량)를 보여준다. 임시 저장만 있으면 "지난번에 갑자기 멈췄어요. 이어서 들을까요?"
+- 결말에 도착하면 기록 삭제 + 받은 결말 배지를 별도 테이블에 저장(다시 들을 이유).
+
+## 10. AI(LLM) 사용 규칙 — 아동 안전
+
+- 프롬프트에 항상 넣을 것: 등장인물 설정, 현재 장면 요약, `hint`, "6세 이상 어린이용, 무섭거나 폭력적인 표현 금지, 2~3줄, 각 줄 40자 이내, 줄거리를 바꾸지 말 것".
+- 응답 형식은 `인물id|대사` 줄 단위로 받아서 파싱. 형식이 틀리면 버린다.
+- `SafetyFilter`: 금칙어 목록, 길이 제한, 등장하지 않는 인물 이름이면 버린다.
+- 다음 장면의 AI 대사는 **현재 장면 재생 중에 미리 생성**해 둔다(네트워크 끊김 대비). 3초 안에 못 받으면 건너뛴다.
+
+## 11. 오디오·안전
+
+- AudioFocus를 요청하고, `AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK`(내비 안내 등)이면 볼륨을 낮추고, `LOSS_TRANSIENT`이면 일시정지했다가 돌아오면 그 줄부터 다시 읽는다.
+- 주행 중 화면: 자막 한 줄, 진행 바, 선택지 버튼(최대 3개)만. 스크롤·텍스트 입력 없음.
+- 위치 좌표는 저장하지 않는다. 거리(km)만 저장한다(위치정보 관련 위험 최소화).
+
+## 12. 개발 순서 (마일스톤)
+
+- **M0** 프로젝트 생성, 빌드 확인, 폴더 구조, Hilt
+- **M1** 스토리 JSON 로딩 + StoryEngine + 단위 테스트 (Mock 차량 데이터로)
+- **M2** 화면: 홈 → 이야기 선택(장르, 길이, 내비 남은 시간 기반 추천) → 재생 → 결말
+- **M3** 저장·이어 듣기(Room), 종료 확인 대화
+- **M4** 음성: Android 기본 TTS/STT로 먼저 → Pleos TTS/STT로 교체
+- **M5** 차량 데이터: Pleos Vehicle(Odometer) + 속도(CarPropertyManager) + NaviHelper 남은 시간
+- **M6** Pleos LLM 추가 대사 + SafetyFilter
+- **M7** 시연 다듬기: 디버그 패널, 효과음/배경음, 시연 시나리오 스크립트
+
+## 13. 작업할 때 지킬 것
+
+- 한 번에 한 마일스톤. 끝나면 무엇을 했는지, 어떻게 확인하는지 짧게 보고한다.
+- 빌드가 깨진 상태로 끝내지 않는다.
+- 비밀값(API 키 등)은 `local.properties`에 두고 커밋하지 않는다. `.gitignore` 확인.
+- 코드 주석은 쉬운 한국어로 짧게.

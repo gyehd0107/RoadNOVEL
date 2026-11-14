@@ -1,0 +1,196 @@
+{
+  "id": "star_map_expedition",
+  "title": "별지도 탐험대",
+  "genre": "fantasy_adventure",
+  "audience": "family",
+  "ageMin": 6,
+  "version": 1,
+  "summary": "하늘에서 떨어진 별지도 조각을 따라, 가족 탐험대가 길잡이 여우 루미와 함께 '잃어버린 북쪽별'을 찾아 떠나는 모험.",
+  "characters": [
+    { "id": "narrator", "name": "내레이터", "voice": { "pitch": 1.0, "rate": 1.0 } },
+    { "id": "lumi", "name": "루미", "desc": "별빛 꼬리를 가진 길잡이 여우. 씩씩하고 말이 빠르다.", "voice": { "pitch": 1.35, "rate": 1.08 } },
+    { "id": "bolt", "name": "볼트", "desc": "겁이 많지만 기억력이 좋은 작은 로봇 거북.", "voice": { "pitch": 0.8, "rate": 0.92 } },
+    { "id": "giant", "name": "안개 거인", "desc": "다리를 지키는 외로운 거인. 무섭게 보이지만 사실 친구가 필요하다.", "voice": { "pitch": 0.55, "rate": 0.85 } }
+  ],
+  "start": "s1_departure",
+  "scenes": {
+    "s1_departure": {
+      "chapter": 1,
+      "title": "출발! 별빛 마을",
+      "place": "별빛 마을",
+      "weight": 1.0,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "어젯밤, 하늘에서 반짝이는 종이 한 장이 우리 차 위로 떨어졌어요. 그건 바로 별지도의 조각이었죠." },
+        { "who": "lumi", "text": "안녕, 탐험대! 나는 길잡이 여우 루미야. 북쪽별이 사라져서 밤하늘 길이 엉망이 됐어." },
+        { "who": "bolt", "text": "삐빅. 나는 볼트. 조금 무섭지만… 지도를 기억하는 건 자신 있어." },
+        { "who": "lumi", "text": "우리 차가 달리는 만큼 지도 위 길도 열려. 자, 출발하자!" }
+      ],
+      "ai": { "enabled": true, "hint": "탐험대가 마을을 떠나며 주고받는 짧고 신나는 대화 2~3줄" },
+      "next": "s2_forest_gate"
+    },
+    "s2_forest_gate": {
+      "chapter": 1,
+      "title": "속삭이는 숲 입구",
+      "place": "속삭이는 숲",
+      "weight": 1.0,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "길이 열리자 나무들이 속닥속닥 이야기하는 숲이 나타났어요." },
+        { "who": "bolt", "text": "지도에 표시가 두 개 있어. 하나는 언덕 위 오래된 성, 하나는 숲속 버섯 마을이야." },
+        { "who": "lumi", "text": "성에는 반짝이는 열쇠가 있다는 소문이 있고, 마을에는 길을 아는 친구들이 산대." }
+      ],
+      "choice": {
+        "question": "탐험대는 어디로 갈까요? 오래된 성일까요, 버섯 마을일까요?",
+        "options": [
+          { "label": "오래된 성", "say": ["성", "오래된 성", "1번", "첫 번째", "첫번째"], "next": "s3a_castle", "setFlags": ["visited_castle"] },
+          { "label": "버섯 마을", "say": ["마을", "버섯", "버섯 마을", "2번", "두 번째", "두번째"], "next": "s3b_village", "setFlags": ["visited_village"] }
+        ],
+        "timeoutSec": 20,
+        "defaultIndex": 0
+      }
+    },
+    "s3a_castle": {
+      "chapter": 2,
+      "title": "오래된 성",
+      "place": "언덕 위의 성",
+      "weight": 1.2,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "삐걱— 성문이 열리자 먼지 속에서 은빛이 반짝였어요." },
+        { "who": "bolt", "text": "저기 계단 위! 은빛 열쇠다. 근데… 계단이 엄청 높아." },
+        { "who": "lumi", "text": "다 같이 숫자를 세면서 올라가자. 하나, 둘, 셋!" },
+        { "who": "narrator", "text": "탐험대는 은빛 열쇠를 손에 넣었어요. 열쇠에는 작은 별 그림이 새겨져 있었죠." }
+      ],
+      "gainItems": ["silver_key"],
+      "ai": { "enabled": true, "hint": "성 안에서 발견한 신기한 물건 하나를 묘사하는 2줄" },
+      "next": "s3a2_castle_tower"
+    },
+    "s3a2_castle_tower": {
+      "chapter": 2,
+      "title": "성의 꼭대기 탑",
+      "place": "성의 탑",
+      "weight": 0.8,
+      "optional": true,
+      "lines": [
+        { "who": "narrator", "text": "탑 꼭대기에 오르자 멀리 안개에 덮인 다리가 보였어요." },
+        { "who": "bolt", "text": "지도에 따르면 북쪽별은 저 다리 너머에 있어." },
+        { "who": "lumi", "text": "창밖을 봐! 우리 진짜 차도 저 다리 쪽으로 달리고 있는 것 같지 않아?" }
+      ],
+      "next": "s4_fog_bridge"
+    },
+    "s3b_village": {
+      "chapter": 2,
+      "title": "버섯 마을",
+      "place": "버섯 마을",
+      "weight": 1.2,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "알록달록 버섯 지붕 아래에서 작은 요정들이 고개를 내밀었어요." },
+        { "who": "lumi", "text": "안녕! 우리는 북쪽별을 찾는 탐험대야." },
+        { "who": "narrator", "text": "요정들은 노래 한 소절을 알려 주었어요. '안개 속 친구에게 이 노래를 불러 주렴.'" },
+        { "who": "bolt", "text": "삐빅, 노래 저장 완료! 나 이런 건 절대 안 잊어버려." }
+      ],
+      "gainItems": ["fairy_song"],
+      "ai": { "enabled": true, "hint": "버섯 마을 요정이 탐험대에게 건네는 짧은 응원 2줄" },
+      "next": "s3b2_village_market"
+    },
+    "s3b2_village_market": {
+      "chapter": 2,
+      "title": "요정 시장",
+      "place": "요정 시장",
+      "weight": 0.8,
+      "optional": true,
+      "lines": [
+        { "who": "narrator", "text": "마을 한가운데 반딧불 시장이 열렸어요." },
+        { "who": "lumi", "text": "여기서 빛나는 도토리를 하나 얻었어! 어두운 곳에서 길을 비춰 준대." },
+        { "who": "bolt", "text": "이제 안개 다리로 가자. 조금… 아주 조금 떨리지만." }
+      ],
+      "next": "s4_fog_bridge"
+    },
+    "s4_fog_bridge": {
+      "chapter": 3,
+      "title": "안개 다리",
+      "place": "안개 다리",
+      "weight": 1.2,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "드디어 안개 다리에 도착했어요. 그때, 쿵— 쿵— 커다란 발소리가 들렸어요." },
+        { "who": "giant", "text": "누가… 내 다리를 건너려고 하느냐…" },
+        { "who": "bolt", "text": "으앗, 거인이다! 등껍질 속에 숨고 싶어." },
+        { "who": "lumi", "text": "잠깐, 거인 목소리가 왠지 슬퍼 보여. 우리 어떻게 하지?" }
+      ],
+      "choice": {
+        "question": "안개 거인에게 어떻게 할까요? 노래를 불러 줄까요, 수수께끼를 낼까요, 아니면 살금살금 지나갈까요?",
+        "options": [
+          { "label": "노래를 불러 준다", "say": ["노래", "1번", "첫 번째", "첫번째"], "next": "e1_friend" },
+          { "label": "수수께끼를 낸다", "say": ["수수께끼", "퀴즈", "2번", "두 번째", "두번째"], "next": "e2_riddle" },
+          { "label": "살금살금 지나간다", "say": ["몰래", "살금살금", "지나가", "3번", "세 번째", "세번째"], "next": "e3_sneak" }
+        ],
+        "timeoutSec": 20,
+        "defaultIndex": 0
+      }
+    },
+    "e1_friend": {
+      "chapter": 3,
+      "title": "거인의 친구",
+      "place": "북쪽 하늘",
+      "weight": 1.0,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "탐험대가 노래를 부르자 안개가 사르르 걷히기 시작했어요." },
+        { "if": "has:fairy_song", "who": "bolt", "text": "버섯 마을 요정들의 노래야! 내가 한 글자도 안 틀리고 기억했지." },
+        { "who": "giant", "text": "이렇게 따뜻한 노래는 처음이야… 사실 북쪽별은 내가 외로워서 꼭 안고 있었단다." },
+        { "who": "narrator", "text": "거인은 북쪽별을 하늘로 돌려보냈고, 이제 탐험대의 친구가 되었어요." }
+      ],
+      "ending": { "id": "friend", "name": "노래로 친구가 된 탐험대", "badge": "🎵" }
+    },
+    "e2_riddle": {
+      "chapter": 3,
+      "title": "수수께끼 대결",
+      "place": "안개 다리 위",
+      "weight": 1.0,
+      "optional": false,
+      "lines": [
+        { "who": "lumi", "text": "거인님, 수수께끼! 낮에는 숨어 있다가 밤에만 길을 알려 주는 것은?" },
+        { "who": "giant", "text": "음… 음… 모르겠다! 정답이 뭐냐?" },
+        { "who": "bolt", "text": "정답은 별! 그러니까 북쪽별을 하늘로 보내 줘야 길을 알려 줄 수 있어요." },
+        { "if": "has:silver_key", "who": "narrator", "text": "은빛 열쇠로 거인의 상자를 열자, 그 안에서 북쪽별이 반짝 떠올랐어요." },
+        { "who": "narrator", "text": "거인은 껄껄 웃으며 길을 열어 주었어요. 북쪽별이 다시 하늘에서 빛나기 시작했죠." }
+      ],
+      "ending": { "id": "riddle", "name": "지혜로 별을 되찾은 탐험대", "badge": "🧩" }
+    },
+    "e3_sneak": {
+      "chapter": 3,
+      "title": "몰래 건너기",
+      "place": "안개 너머",
+      "weight": 1.0,
+      "optional": false,
+      "lines": [
+        { "who": "narrator", "text": "탐험대는 숨을 꾹 참고 살금살금 다리를 건넜어요." },
+        { "who": "bolt", "text": "삐… 빅… 소리 안 나게 걷는 중…" },
+        { "who": "narrator", "text": "다리 끝에서 뒤를 돌아보니, 거인이 혼자 북쪽별을 안고 쓸쓸히 앉아 있었어요." },
+        { "who": "lumi", "text": "다음 여행에서는 거인에게 꼭 다시 와 보자. 친구가 필요한 것 같아." }
+      ],
+      "ending": { "id": "sneak", "name": "다음 모험을 약속한 탐험대", "badge": "🌙", "unlockHint": "다음 주행에서 다시 오면 다른 결말을 볼 수 있어요" }
+    }
+  },
+  "interludes": [
+    {
+      "id": "i_stop_campfire",
+      "trigger": "vehicle_stopped",
+      "lines": [
+        { "who": "lumi", "text": "잠깐 멈췄네! 우리도 모닥불 앞에서 숨 좀 고르자." },
+        { "who": "bolt", "text": "삐빅. 지금까지 지나온 곳을 기억해 볼까? 탐험대원 여러분은 기억나요?" }
+      ]
+    },
+    {
+      "id": "i_stop_snack",
+      "trigger": "vehicle_stopped",
+      "lines": [
+        { "who": "bolt", "text": "멈춘 김에 간식 시간! 로봇 거북은 나사 쿠키를 좋아해." },
+        { "who": "lumi", "text": "다시 출발하면 지도 위 길도 다시 열릴 거야." }
+      ]
+    }
+  ]
+}
