@@ -8,7 +8,10 @@ import com.roadnovel.audio.AndroidSoundEffects
 import com.roadnovel.audio.AudioFocusController
 import com.roadnovel.audio.NavPromptSimulator
 import com.roadnovel.audio.SoundEffects
+import com.roadnovel.data.save.MIGRATION_1_2
+import com.roadnovel.data.save.ReportRepository
 import com.roadnovel.data.save.RoadNovelDatabase
+import com.roadnovel.data.save.RoomReportRepository
 import com.roadnovel.data.save.RoomSaveRepository
 import com.roadnovel.data.save.SaveRepository
 import com.roadnovel.data.story.AssetStoryRepository
@@ -46,7 +49,14 @@ object AppModule {
     @Provides
     @Singleton
     fun database(@ApplicationContext context: Context): RoadNovelDatabase =
-        Room.databaseBuilder(context, RoadNovelDatabase::class.java, "roadnovel.db").build()
+        Room.databaseBuilder(context, RoadNovelDatabase::class.java, "roadnovel.db")
+            .addMigrations(MIGRATION_1_2) // 신고 표 추가 (기존 저장·배지 유지)
+            .build()
+
+    /** AI 콘텐츠 신고 (지금은 앱 안에만 기록) */
+    @Provides
+    @Singleton
+    fun reportRepository(db: RoadNovelDatabase): ReportRepository = RoomReportRepository(db.reportDao())
 
     @Provides
     @Singleton

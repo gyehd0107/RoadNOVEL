@@ -24,12 +24,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.roadnovel.ui.common.GoButton
+import com.roadnovel.ui.common.LoadingAfterDelay
 import com.roadnovel.ui.common.SubButton
 import com.roadnovel.ui.theme.RN
 
 /** "이야기를 여기서 멈출까요?" — 저장하고 끝내기 / 저장 안 함 / 계속 듣기 */
 @Composable
-fun QuitDialog(onSave: () -> Unit, onDiscard: () -> Unit, onContinue: () -> Unit) {
+fun QuitDialog(onSave: () -> Unit, onDiscard: () -> Unit, onContinue: () -> Unit, saving: Boolean = false) {
     Box(
         Modifier
             .fillMaxSize()
@@ -58,6 +59,7 @@ fun QuitDialog(onSave: () -> Unit, onDiscard: () -> Unit, onContinue: () -> Unit
                 SubButton("저장 안 함", onClick = onDiscard)
                 SubButton("계속 듣기", onClick = onContinue)
             }
+            LoadingAfterDelay(waiting = saving, text = "저장하고 있어요")
         }
     }
 }

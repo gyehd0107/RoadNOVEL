@@ -53,7 +53,12 @@ interface SaveDao {
     suspend fun addBadge(b: BadgeEntity)
 }
 
-@Database(entities = [SavedProgressEntity::class, BadgeEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [SavedProgressEntity::class, BadgeEntity::class, ContentReportEntity::class],
+    version = 2,
+    exportSchema = false,
+)
 abstract class RoadNovelDatabase : RoomDatabase() {
     abstract fun saveDao(): SaveDao
+    abstract fun reportDao(): ReportDao
 }

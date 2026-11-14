@@ -76,6 +76,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                             badges = ui.badges,
                             onResume = vm::resumeStory,
                             onNewStory = vm::goSelect,
+                            showCollection = !ui.drivingRestricted,
                         )
                         ScreenId.SELECT -> SelectScreen(
                             ui = ui,
@@ -91,9 +92,12 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                                 soundOn = ui.soundOn,
                                 onToggleSound = vm::toggleSound,
                                 onQuit = vm::quitStory,
+                                restricted = ui.drivingRestricted,
+                                reportedText = ui.reportedText,
+                                onReport = vm::reportCurrentLine,
                             )
                         }
-                        ScreenId.ENDING -> ui.ending?.let { EndingScreen(it, onHome = vm::goHome) }
+                        ScreenId.ENDING -> ui.ending?.let { EndingScreen(it, onHome = vm::goHome, showCollection = !ui.drivingRestricted) }
                     }
                 }
             }
@@ -131,6 +135,7 @@ fun RoadNovelRoot(vm: RoadNovelViewModel = hiltViewModel()) {
                 onSave = { vm.finishQuit(save = true) },
                 onDiscard = { vm.finishQuit(save = false) },
                 onContinue = vm::cancelQuit,
+                saving = ui.saving,
             )
         }
 
@@ -212,7 +217,8 @@ private fun TopBar(ui: UiState, onLogoLongPress: () -> Unit) {
         Chip {
             Dot(if (moving) RN.Teal else RN.Rose)
             val gearText = ui.gear?.let { " (${it.label})" }.orEmpty()
-            val speedText = ui.liveSpeedKmh?.let { " ${it.toInt()}km/h" }.orEmpty()
+            // 지금 출처(Mock 등)가 실제로 달리는 중일 때만 속도 숫자를 붙인다
+            val speedText = if (ui.moving) ui.liveSpeedKmh?.let { " ${it.toInt()}km/h" }.orEmpty() else ""
             Text(if (moving) "주행 중$speedText$gearText" else "정차 중$gearText", color = RN.Sub, fontSize = 15.sp)
         }
         Chip {

@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.roadnovel.story.LineSource
 import com.roadnovel.ui.PlayerUi
 import com.roadnovel.ui.common.Avatar
+import com.roadnovel.ui.common.LoadingAfterDelay
+import androidx.compose.foundation.clickable
 import com.roadnovel.ui.common.CardShape
 import com.roadnovel.ui.common.SubButton
 import com.roadnovel.ui.common.avatarFor
@@ -48,6 +50,10 @@ fun PlayerScreen(
     onToggleSound: () -> Unit,
     onQuit: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 주행 중이면 신고 버튼 등 부가 기능을 숨김 */
+    restricted: Boolean = false,
+    reportedText: String? = null,
+    onReport: () -> Unit = {},
 ) {
     val scene = p.story.scene(p.sceneId)
     Row(
@@ -91,12 +97,30 @@ fun PlayerScreen(
                     label = "caption",
                 ) { cap ->
                     if (cap == null) {
-                        Text("이야기가 곧 시작돼요…", style = MaterialTheme.typography.bodyLarge, color = RN.Sub)
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("이야기가 곧 시작돼요…", style = MaterialTheme.typography.bodyLarge, color = RN.Sub)
+                            // 2초 넘게 첫 대사가 안 나오면 로딩 표시
+                            LoadingAfterDelay(waiting = true, text = "이야기를 준비하고 있어요")
+                        }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Avatar(avatarFor(cap.who))
                                 Text(cap.name, style = MaterialTheme.typography.bodyLarge, color = RN.Sub)
+                                // AI 추가 대사 자리에 나온 줄은 정차 중에 신고할 수 있음
+                                val reportable = cap.source == LineSource.AI || cap.source == LineSource.EXTRA
+                                if (reportable && !restricted && reportedText != cap.text) {
+                                    Text(
+                                        "🚩 이 대사 신고하기",
+                                        color = RN.Sub,
+                                        fontSize = 15.sp,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .border(1.dp, RN.Line, RoundedCornerShape(999.dp))
+                                            .clickable(onClick = onReport)
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    )
+                                }
                                 when (cap.source) {
                                     // 언어 모델이 실제로 만든 대사에만 표시 (미리 써 둔 추가 대사는 표시 안 함)
                                     LineSource.AI -> Tag("✨ AI", RN.Violet)

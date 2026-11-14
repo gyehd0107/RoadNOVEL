@@ -7,6 +7,8 @@ import com.roadnovel.data.navi.NaviDataSource
 import com.roadnovel.data.save.EarnedBadge
 import com.roadnovel.data.save.SavedProgress
 import com.roadnovel.data.save.SaveRepository
+import com.roadnovel.data.save.ContentReport
+import com.roadnovel.data.save.ReportRepository
 import com.roadnovel.data.vehicle.MockVehicleDataSource
 import com.roadnovel.data.vehicle.DrivingRestriction
 import com.roadnovel.data.vehicle.Gear
@@ -110,6 +112,10 @@ data class UiState(
     val restrictPreview: Boolean = false,
     /** 디버그 패널은 디버그 빌드에서만 */
     val debugBuild: Boolean = BuildConfig.DEBUG,
+    /** "저장하고 끝내기"를 누르고 저장하는 중 (2초 넘으면 로딩 표시) */
+    val saving: Boolean = false,
+    /** 이번에 신고한 대사 (같은 대사에 버튼을 다시 보이지 않게) */
+    val reportedText: String? = null,
     /** false면 소리 없이 자막만 */
     val soundOn: Boolean = true,
     /** 디버그: 마이크 대신 보낼 수 있는 시험 녹음 이름들 (assets/test_audio 폴더의 .pcm 파일) */
@@ -196,6 +202,7 @@ class RoadNovelViewModel @Inject constructor(
     private val focus: AudioFocusController,
     private val navSim: NavPromptSimulator,
     private val driving: DrivingRestriction,
+    private val reports: ReportRepository,
     @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -326,9 +333,10 @@ class RoadNovelViewModel @Inject constructor(
         val e = engine ?: return goHome()
         val state = e.state
         stopPlaying()
+        _ui.update { it.copy(saving = true) }
         viewModelScope.launch {
             if (save) saves.save(state, isTemp = false) else saves.delete(state.storyId)
-            _ui.update { it.copy(quitDialog = false) }
+            _ui.update { it.copy(quitDialog = false, saving = false) }
             goHome()
             showToast(if (save) "💾 저장했어요. 다음 주행에서 이어서 들을 수 있어요" else "이번 이야기는 저장하지 않았어요")
         }
@@ -504,6 +512,20 @@ class RoadNovelViewModel @Inject constructor(
 
     /** 다른 앱 때문에 멈춘 뒤 "▶ 이어 듣기" */
     fun resumeAfterFocusLoss() = focus.request()
+
+    /**
+     * "이 대사 신고하기" (정차 중에만 보임). 지금은 앱 안에만 기록하고,
+     * 서버가 생기면 ReportRepository.pending()을 보내면 된다.
+     */
+    fun reportCurrentLine() {
+        val p = _ui.value.player ?: return
+        val cap = p.caption ?: return
+        viewModelScope.launch {
+            reports.report(ContentReport(p.story.id, p.sceneId, cap.who, cap.text, cap.source.name))
+            _ui.update { it.copy(reportedText = cap.text) }
+            showToast("🚩 신고했어요. 알려 줘서 고마워요")
+        }
+    }
 
     /** 디버그: 내비 안내가 끼어드는 상황 (진짜 내비 안내 용도로 오디오 포커스를 잡음) */
     fun simulateNavPrompt() = navSim.play()

@@ -40,6 +40,8 @@ fun HomeScreen(
     onResume: () -> Unit,
     onNewStory: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 모은 결말 같은 수집 요소는 정차 중에만 보여 준다 (주행 중 게임처럼 보이지 않게) */
+    showCollection: Boolean = true,
 ) {
     Column(
         modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp),
@@ -97,16 +99,16 @@ fun HomeScreen(
                 Text("장르와 길이를 고르면 바로 출발해요", style = MaterialTheme.typography.bodyMedium, color = RN.OnGold.copy(alpha = 0.75f))
             }
         }
-        BadgeRow(badges)
+        if (showCollection) BadgeRow(badges)
     }
 }
 
 @Composable
 private fun BadgeRow(badges: List<EarnedBadge>) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("모은 결말 배지", color = RN.Sub, fontSize = 16.sp)
+        Text("들어 본 결말", color = RN.Sub, fontSize = 16.sp)
         if (badges.isEmpty()) {
-            Text("아직 없어요 — 이야기를 끝까지 들으면 배지를 받아요", color = RN.Dim, fontSize = 16.sp)
+            Text("아직 없어요 — 이야기를 끝까지 들으면 여기에 남아요", color = RN.Dim, fontSize = 16.sp)
         }
         badges.forEach { b ->
             val shape = RoundedCornerShape(999.dp)

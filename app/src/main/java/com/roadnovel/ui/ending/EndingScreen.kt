@@ -25,25 +25,31 @@ import com.roadnovel.ui.theme.RN
 
 /** 결말: 배지, 결말 이름, 이번 여정 요약 */
 @Composable
-fun EndingScreen(e: EndingUi, onHome: () -> Unit, modifier: Modifier = Modifier) {
+fun EndingScreen(
+    e: EndingUi,
+    onHome: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** 결말 표시·남은 결말 수 같은 수집 요소는 정차 중에만 */
+    showCollection: Boolean = true,
+) {
     Column(
         modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
     ) {
-        Text(e.ending.badge.ifEmpty { "⭐" }, fontSize = 80.sp)
-        Text("에피소드 완성", color = RN.Gold, fontWeight = FontWeight.Bold, letterSpacing = 2.sp, fontSize = 17.sp)
+        if (showCollection) Text(e.ending.badge.ifEmpty { "⭐" }, fontSize = 80.sp)
+        Text("이야기 끝", color = RN.Gold, fontWeight = FontWeight.Bold, letterSpacing = 2.sp, fontSize = 17.sp)
         Text(e.ending.name, style = MaterialTheme.typography.displayMedium, textAlign = TextAlign.Center)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             SumBox("함께 달린 거리", "%.1f km".format(e.totalKm))
             SumBox("들은 시간", formatTime(e.elapsedSec))
             SumBox("우리의 선택", e.choices.joinToString(" → ").ifEmpty { "-" })
         }
-        Text(
+        if (showCollection) Text(
             when {
                 e.ending.unlockHint != null -> e.ending.unlockHint
-                e.unseenCount > 0 -> "아직 못 본 결말이 ${e.unseenCount}개 있어요. 다음 여행에서 다른 선택을 해 보세요!"
-                else -> "모든 결말을 모았어요! 🎉"
+                e.unseenCount > 0 -> "다른 선택을 하면 또 다른 이야기를 들을 수 있어요 (${e.unseenCount}가지 더)"
+                else -> "이 이야기의 결말을 모두 들어 봤어요"
             },
             color = RN.Sub,
             fontSize = 17.sp,

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.roadnovel.ui.DebugStats
 import com.roadnovel.ui.VehicleSource
 import com.roadnovel.ui.common.formatTime
+import com.roadnovel.ui.common.LoadingAfterDelay
 import com.roadnovel.ui.theme.RN
 import kotlin.math.roundToInt
 
@@ -95,6 +96,7 @@ fun DebugPanel(
                 }
                 if (vehicleSource == VehicleSource.PLEOS) {
                     Text(pleosStatus.ifEmpty { "연결 확인 중…" }, color = RN.Teal, fontSize = 13.sp)
+                    LoadingAfterDelay(waiting = pleosStatus.isEmpty() || pleosStatus.startsWith("연결 확인"), text = "차량에 연결하는 중")
                     KV("기어", gear ?: "-")
                     KV("주행거리계", odometerKm?.let { "%.1f km".format(it) } ?: "-")
                     Text("Virtual Console(127.0.0.1:8088)에서 기어·주행거리를 바꿔 보세요", color = RN.Dim, fontSize = 12.sp)

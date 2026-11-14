@@ -1,9 +1,9 @@
 # ROAD NOVEL — 달리는 만큼 펼쳐지는 우리 가족 이야기
 
-**차가 실제로 달린 거리와 멈춘 순간, 탑승자의 음성 선택에 따라 전개와 결말이 달라지는 차량용 인터랙티브 오디오 동화 앱**입니다.
+**차가 실제로 달린 거리와 멈춘 순간, 탑승자의 음성 선택에 따라 전개와 결말이 달라지는 차량용 오디오 이야기 앱**입니다.
 현대자동차그룹 **Pleos Connect**(Android Automotive OS)용으로 만들었고, 원하는 길이(10/20/30분)만큼 듣다가 다음 주행에서 이어 들을 수 있어요.
 
-| 재생 화면 | 음성 선택 | 이어 듣기 · 결말 배지 |
+| 재생 화면 | 음성 선택 | 이어 듣기 |
 |---|---|---|
 | ![재생 화면](docs/screenshots/03_player.png) | ![음성 선택](docs/screenshots/05_choice.png) | ![이어 듣기](docs/screenshots/08_home_resume.png) |
 
@@ -19,7 +19,7 @@
 - 🎤 **음성으로 선택** — 갈림길에서 "오래된 성!", "2번!"처럼 말로 고르면 결말이 달라져요. 동승자는 화면의 큰 버튼으로도 고를 수 있어요.
 - 🔊 **인물별 낭독** — Pleos TextToSpeech로 대사를 읽어 줘요. 운전 중에는 화면을 만질 필요가 없어요.
 - 💾 **이어 듣기** — 장면이 바뀔 때마다 자동 저장되고, 앱이 갑자기 꺼져도 다음에 그 장면부터 이어 들을 수 있어요.
-- 🏅 **결말 배지** — 받은 결말을 모아 "다른 선택"을 해 보고 싶게 만들어요.
+- 📖 **다른 결말 듣기** — 들어 본 결말을 기억해 두고, 다음 주행에서 다른 선택으로 새 이야기를 들어 볼 수 있어요. (이 목록은 **정차 중에만** 보여요)
 - 🛡️ **어린이 안전** — 이야기의 뼈대(사건·분기·결말)는 미리 설계된 데이터로만 진행해요. AI 추가 대사 자리는 금칙어·길이·등장인물 검사(SafetyFilter)를 반드시 거쳐요.
 - 🔒 **위치는 저장하지 않아요** — 정차를 알기 위해 차량 속도만 쓰고, 저장하는 건 달린 거리(km)뿐이에요.
 
@@ -35,6 +35,30 @@
 | AI 추가 대사 | Pleos **LLM** 2.1.3.2 | 🟡 구조만 준비 — 에뮬레이터에서 on-device LLM이 비활성 (`on-device LLM is disabled`). 지금은 미리 써 둔 대사로 동작하고, 이 대사에는 "✨ AI" 표시를 하지 않아요 |
 
 SDK가 없거나 값이 안 나와도 **Mock(가짜 차량·자막)으로 끝까지 시연**할 수 있게 만들었어요.
+
+## 주행 안전
+
+- **주행 중 화면 제한** (AAOS UX Restrictions): 주행 중에는 디버그 패널·장르·길이 선택·들어 본 결말 목록을 숨기고, 이야기 시작은 "추천대로 출발" 버튼 하나로 줄여요. 권한 안내도 정차할 때까지 미뤄요.
+- **내비 안내 우선** (Audio Focus): 내비 안내가 나오면 이야기를 잠깐 멈추고, 끝나면 그 대사부터 다시 읽어요.
+- **아이에게 위험한 말 걸러내기**: AI 추가 대사는 금칙어와 함께 **창문 밖으로 손·머리 내밀기, 안전벨트 풀기 같은 차 안 위험 행동**, **과속·신호 위반·재촉 같은 위험 운전 유도** 표현을 걸러내요. 미리 쓴 이야기도 같은 기준으로 점검했어요.
+- **AI 대사 신고**: AI 추가 대사 자리에 나온 줄은 **정차 중에** "🚩 이 대사 신고하기"로 신고할 수 있어요. (지금은 앱 안에 기록만 하고, 서버로 보낼 수 있는 구조로 만들어 두었어요)
+- **응답 표시**: 버튼을 누르고 2초 안에 화면이 바뀌지 않으면 로딩 표시가 나와요.
+
+## 앱이 쓰는 권한 (Pleos App Market 협의용)
+
+| 권한 | 종류 | 쓰는 곳 | 없으면 |
+|---|---|---|---|
+| `pleos.car.permission.CAR_DRIVE` | Pleos 차량 | 주행거리(Odometer) 읽기 — Vehicle SDK | Mock(가짜 차량)으로 동작 |
+| `ai.pleos.playground.service.vehicle.VEHICLE_BINDING` | Pleos 차량 (SDK가 자동 추가) | Vehicle SDK 서비스 연결 | 위와 같음 |
+| `android.car.permission.CAR_SPEED` | AAOS 차량 · **실행 중 허용** (화면에는 "위치 정보"로 보임) | 차량 속도(`PERF_VEHICLE_SPEED`) — 신호 대기 같은 정차 판단 | 기어로만 정차 판단 |
+| `android.car.permission.CAR_POWERTRAIN` | AAOS 차량 | 기어(`GEAR_SELECTION`) — P면 정차 | Pleos Gear API(예비) 또는 속도로 판단 |
+| `pleos.car.permission.TTS_SERVICE` | Pleos 음성 | 대사 낭독 — TextToSpeech SDK | 자막만 |
+| `pleos.car.permission.STT_SERVICE` | Pleos 음성 | 음성으로 선택 — SpeechToText SDK | 화면 버튼으로 선택 |
+| `android.permission.RECORD_AUDIO` | Android · **실행 중 허용** | 음성으로 선택 (마이크) | 화면 버튼으로 선택 |
+| `pleos.car.permission.LLM_SERVICE` | Pleos AI | AI 추가 대사 — LLM SDK (지금은 사용 안 함, 구조만) | 미리 쓴 대사 |
+| `android.permission.INTERNET` | Android (Pleos SDK가 자동 추가) | Pleos SDK 서버 모드 (지금은 ON_DEVICE만 사용) | ON_DEVICE로 동작 |
+
+- **위치(GPS)는 쓰지 않아요.** 저장하는 차량 정보는 이야기 시작 후 달린 거리(km)뿐이에요.
 
 ## 실행 방법
 
@@ -69,7 +93,7 @@ app/src/main/
     story/               스토리 엔진 (순수 Kotlin, 단위 테스트)
     data/vehicle/        차량 데이터 (Pleos Vehicle·AAOS / Mock)
     data/navi/           내비 남은 시간 (Mock)
-    data/save/           진행 저장·결말 배지 (Room)
+    data/save/           진행 저장·들어 본 결말·AI 대사 신고 기록 (Room)
     voice/               낭독·음성 인식 (Pleos TTS/STT / Android 기본 / 자막만)
     ai/                  AI 추가 대사 (Pleos LLM 구조 / 미리 쓴 대사) + SafetyFilter
     audio/               효과음·배경음
