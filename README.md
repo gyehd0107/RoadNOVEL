@@ -82,17 +82,17 @@
 필요한 설정
 - 별도 계정·키 없이 동작 (음성은 온디바이스 모드)
 - 말로 고르기: 에뮬레이터 실행 후 Extended Controls → Microphone에서 **호스트 마이크 입력 켜기** (켤 때마다 필요). 켜지 않으면 화면 버튼으로 고르거나 기본 선택으로 진행
-- 차량 움직이기: Pleos Virtual Console에서 기어 D·주행거리를 바꾸면 이야기가 진행됨 (`adb forward tcp:8088 tcp:8088` → http://127.0.0.1:8088/)
+- 차량 움직이기: Pleos Virtual Console에서 **기어를 D로 바꾸면 이야기가 진행**되고, P(주차)면 멈춤 (`adb forward tcp:8088 tcp:8088` → http://127.0.0.1:8088/)
+  - 주행거리를 늘리면 그 거리만큼 더 정확하게 진행
 - 처음 실행 시 속도 정보 권한(화면에는 "위치 정보"로 표시)을 허용하면 속도로 더 정확하게 진행
 
 ## 실행 방법
 
 - APK로 설치: `adb install apk/MOBINOVA_RoadNovel_release.apk` → 앱 목록에서 ROAD NOVEL 실행
 - 소스로 실행:
-
-1. Android Studio와 Pleos Connect 에뮬레이터 준비
-2. 이 저장소를 Android Studio에서 열고, 기기로 에뮬레이터 선택 후 ▶(Run)
-3. 앱에서 "이야기 고르기" → "출발"
+  1. Android Studio와 Pleos Connect 에뮬레이터 준비
+  2. 이 저장소를 Android Studio에서 열고, 기기로 에뮬레이터 선택 후 ▶(Run)
+  3. 앱에서 "이야기 고르기" → "출발"
 
 - 실주행 시연 (약 2분 20초): 에뮬레이터에 디버그 빌드를 설치한 상태에서 `bash tools/drive_demo.sh` 실행
   - 가상 차량이 자동으로 달리고 멈추며 출발 → 정차 이야기 → 선택 → 내비 안내 → 결말까지 진행, 디버그 패널은 화면에 나오지 않음
