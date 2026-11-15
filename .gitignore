@@ -35,3 +35,6 @@ docs/Claude outputs/
 # docs는 README용 화면(screenshots)만 올린다 (나머지는 팀 내부 자료)
 docs/*
 !docs/screenshots/
+
+# 제출용 release APK는 저장소에 포함
+!apk/*.apk

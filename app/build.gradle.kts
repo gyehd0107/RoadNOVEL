@@ -41,6 +41,19 @@ android {
         buildConfigField("String", "PLEOS_CLIENT_SECRET", "\"${localProp("pleos.clientSecret")}\"")
     }
 
+    // 릴리스 서명: local.properties의 release.* 값 (키 파일·비밀번호는 커밋하지 않음)
+    signingConfigs {
+        create("release") {
+            val file = localProp("release.storeFile")
+            if (file.isNotEmpty()) {
+                storeFile = rootProject.file(file)
+                storePassword = localProp("release.storePassword")
+                keyAlias = localProp("release.keyAlias")
+                keyPassword = localProp("release.keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         // 앱이 처음 켜질 때의 차량 데이터 출처
         //  - 디버그: MOCK (디버그 패널로 조작하는 가상 차량)
@@ -51,6 +64,8 @@ android {
         }
         release {
             buildConfigField("String", "DEFAULT_VEHICLE_SOURCE", "\"PLEOS\"")
+            // 키가 없으면(다른 PC에서 빌드) 디버그 키로 서명해 설치는 되게 한다
+            signingConfig = if (localProp("release.storeFile").isNotEmpty()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
