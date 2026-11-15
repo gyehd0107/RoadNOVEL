@@ -342,15 +342,26 @@ class StoryEngine(
     private fun String.koreanCountToDigits(): String = COUNT_WORDS.entries.fold(this) { acc, (word, digit) -> acc.replace(word, digit) }
 
     private fun distanceDelta(dtSec: Double, speedKmh: Float?, odometerKm: Double?): Double {
-        val bySpeed = (speedKmh ?: 0f).coerceAtLeast(0f) / 3600.0 * dtSec
+        // 속도 null = 주행 중(기어 D/R)인데 속도를 모름 → 평균 속도로 달린다고 보고 추정
+        // (속도 센서·권한이 없고 주행거리계도 안 움직여도 이야기가 멈추지 않게)
+        val bySpeed = if (speedKmh == null) s.avgKmPerMin / 60.0 * dtSec
+        else speedKmh.coerceAtLeast(0f) / 3600.0 * dtSec
         val prev = lastOdometer
         lastOdometer = odometerKm ?: prev
-        if (odometerKm == null || prev == null) return bySpeed
+        if (odometerKm == null || prev == null) return bySpeed.also { if (speedKmh == null) estimatedAheadKm += it }
         val d = odometerKm - prev
         // 주행거리계는 1km 단위로 한꺼번에 오르기도 한다 (실차·Virtual Console).
         // 거꾸로 가거나 말이 안 되게 크게 튀면(출처 전환 등) 속도로 계산
-        return if (d in 0.0..MAX_ODOMETER_JUMP_KM) d else bySpeed
+        if (d !in 0.0..MAX_ODOMETER_JUMP_KM) return bySpeed
+        if (speedKmh != null) { estimatedAheadKm = 0.0; return d }
+        if (d == 0.0) { estimatedAheadKm += bySpeed; return bySpeed }
+        // 주행거리계가 올랐으면, 이미 추정으로 더한 만큼은 빼고 더한다 (두 번 세지 않게)
+        val add = (d - estimatedAheadKm).coerceAtLeast(0.0)
+        estimatedAheadKm = (estimatedAheadKm - d).coerceAtLeast(0.0)
+        return add
     }
+    /** 속도를 몰라 추정으로 더한 거리 중 아직 주행거리계에 반영되지 않은 몫 */
+    private var estimatedAheadKm = 0.0
 
     /** 최근 5분 평균 속도로 보정 (규칙 2) */
     private fun updateAverage(elapsed: Double, total: Double): Double {

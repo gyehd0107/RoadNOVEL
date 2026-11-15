@@ -607,6 +607,7 @@ class RoadNovelViewModel @Inject constructor(
         _ui.update {
             it.copy(liveSpeedKmh = speed, gear = gear, odometerKm = odometer, moving = isMoving(speed, gear))
         }
+        engine?.let(::refreshPlayer) // 출발·정차가 바뀌면 진행 안내 글자도 바로 바꾼다
         updateRestricted()
     }
 
@@ -847,6 +848,9 @@ class RoadNovelViewModel @Inject constructor(
             st.phase == Phase.CHOICE -> "탐험대의 선택을 기다려요" to ""
             scene.choice != null -> "곧 갈림길이 나와요" to ""
             scene.ending != null && need <= 0.0 -> "마지막 장면" to ""
+            // 대사를 다 읽고 거리를 기다리는데 차가 서 있으면: 왜 멈췄는지 화면에 알려 준다
+            st.phase == Phase.WAITING && !isMoving(speed, gear) ->
+                "차가 출발하면 이야기가 이어져요" to "%.2f km 남음".format((need - moved).coerceAtLeast(0.0))
             else -> "다음 장면까지" to "%.2f km 남음".format((need - moved).coerceAtLeast(0.0))
         }
         val progress = if (need <= 0.0) 1f else (moved / need).toFloat().coerceIn(0f, 1f)

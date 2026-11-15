@@ -400,3 +400,28 @@ class StoryEngineTest {
         assertNotEquals(null, err)
     }
 }
+
+/** 속도를 모르는 주행(기어 D, 속도 권한·센서 없음)에서도 이야기가 진행되는지 */
+class UnknownSpeedTest {
+    @org.junit.Test
+    fun `속도 모르고 주행거리계도 그대로면 평균 속도로 추정해 진행`() {
+        val e = StoryEngine(loadStarMap(), lengthMin = 10)
+        repeat(60) { e.tick(1.0, null, 100.0) } // 1분, 30km/h 추정 → 0.5km
+        org.junit.Assert.assertEquals(0.5, e.state.totalKm, 0.01)
+    }
+
+    @org.junit.Test
+    fun `주행거리계가 오르면 추정한 거리를 두 번 세지 않음`() {
+        val e = StoryEngine(loadStarMap(), lengthMin = 10)
+        repeat(60) { e.tick(1.0, null, 100.0) } // 추정 0.5km
+        e.tick(0.001, null, 101.0)               // 주행거리계 +1km → 0.5km만 더함
+        org.junit.Assert.assertEquals(1.0, e.state.totalKm, 0.01)
+    }
+
+    @org.junit.Test
+    fun `기어 P(속도 0)면 거리를 더하지 않음`() {
+        val e = StoryEngine(loadStarMap(), lengthMin = 10)
+        repeat(60) { e.tick(1.0, 0f, 100.0) }
+        org.junit.Assert.assertEquals(0.0, e.state.totalKm, 1e-9)
+    }
+}

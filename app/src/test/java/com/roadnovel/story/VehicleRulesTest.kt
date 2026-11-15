@@ -62,7 +62,8 @@ class VehicleRulesTest {
         tick(e, car, 0.5)
         e.nextAction()
         assertEquals("s2_forest_gate", e.state.sceneId)
-        assertEquals(1.0, e.state.totalKm, 1e-9)
+        // 속도를 모르는 동안 추정 거리가 조금 더해지지만, 주행거리계가 오르면 그만큼 빼므로 거의 1km
+        assertEquals(1.0, e.state.totalKm, 0.01)
         assertEquals(StoryEngine.DEFAULT_KM_PER_MIN, e.state.avgKmPerMin, 0.0)
     }
 

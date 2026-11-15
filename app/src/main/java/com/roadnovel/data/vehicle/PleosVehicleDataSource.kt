@@ -153,25 +153,8 @@ class PleosVehicleDataSource(private val context: Context) : VehicleDataSource {
             return ok
         }
 
-        if (context.checkSelfPermission(Car.PERMISSION_SPEED) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "속도 권한(${Car.PERMISSION_SPEED}) 없음 → 기어로만 정차/주행 판단")
-        } else if (supported(VehiclePropertyIds.PERF_VEHICLE_SPEED, "PERF_VEHICLE_SPEED")) {
-            speedOk = runCatching {
-                cpm.registerCallback(object : CarPropertyManager.CarPropertyEventCallback {
-                    override fun onChangeEvent(value: CarPropertyValue<*>) {
-                        (value.value as? Float)?.let { mps ->
-                            val kmh = mps * 3.6f // m/s → km/h
-                            if (kmh > 0.5f && !speedLive) {
-                                speedLive = true
-                                Log.i(TAG, "속도 센서 값 들어옴 → 이제 속도로 정차/주행 판단")
-                            }
-                            if (speedLive) _speed.value = kmh
-                        }
-                    }
-                    override fun onErrorEvent(propertyId: Int, areaId: Int) = Unit
-                }, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
-            }.getOrDefault(false)
-        }
+        carProps = cpm
+        registerSpeed()
 
         if (supported(VehiclePropertyIds.GEAR_SELECTION, "GEAR_SELECTION")) {
             aaosGearOk = runCatching {
@@ -185,6 +168,45 @@ class PleosVehicleDataSource(private val context: Context) : VehicleDataSource {
             if (aaosGearOk) gearOk = true
         }
     }
+
+    private var carProps: CarPropertyManager? = null
+
+    /**
+     * 속도 콜백 등록. 권한이 아직 없으면 몇 초마다 다시 확인한다
+     * (실행 중에 권한 창에서 "허용"을 누르면 그때부터 속도를 쓰도록)
+     */
+    @Suppress("DEPRECATION")
+    private fun registerSpeed() {
+        val cpm = carProps ?: return
+        if (speedOk) return
+        if (context.checkSelfPermission(Car.PERMISSION_SPEED) != PackageManager.PERMISSION_GRANTED) {
+            if (!speedWaitLogged) Log.w(TAG, "속도 권한(${Car.PERMISSION_SPEED}) 없음 → 기어로만 정차/주행 판단 (허용되면 바로 씀)")
+            speedWaitLogged = true
+            main.postDelayed(::registerSpeed, SPEED_PERMISSION_RECHECK_MS)
+            return
+        }
+        val supported = runCatching { cpm.getCarPropertyConfig(VehiclePropertyIds.PERF_VEHICLE_SPEED) != null }.getOrDefault(false)
+        Log.i(TAG, "PERF_VEHICLE_SPEED 지원: $supported")
+        if (!supported) return
+        speedOk = runCatching {
+            cpm.registerCallback(object : CarPropertyManager.CarPropertyEventCallback {
+                override fun onChangeEvent(value: CarPropertyValue<*>) {
+                    (value.value as? Float)?.let { mps ->
+                        val kmh = mps * 3.6f // m/s → km/h
+                        if (kmh > 0.5f && !speedLive) {
+                            speedLive = true
+                            Log.i(TAG, "속도 센서 값 들어옴 → 이제 속도로 정차/주행 판단")
+                        }
+                        if (speedLive) _speed.value = kmh
+                    }
+                }
+                override fun onErrorEvent(propertyId: Int, areaId: Int) = Unit
+            }, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
+        }.getOrDefault(false)
+        val st = _status.value
+        if (speedOk && st is Status.Available) _status.value = st.copy(speed = true)
+    }
+    private var speedWaitLogged = false
 
     /** android.car.VehicleGear 값 → Gear */
     private fun aaosGear(v: Int): Gear = when (v) {
@@ -209,6 +231,7 @@ class PleosVehicleDataSource(private val context: Context) : VehicleDataSource {
     }
 
     private companion object {
+        const val SPEED_PERMISSION_RECHECK_MS = 3_000L
         const val TAG = "PleosVehicle"
         const val FIRST_PROBE_MS = 500L
         const val RETRY_MS = 700L
